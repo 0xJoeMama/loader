@@ -1,0 +1,12 @@
+[package]
+name = "piston_meta"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "*"
+serde_json = "*"
+tokio = {version =  "*" , features = ["macros", "rt-multi-thread", "fs"]}
+reqwest = "*"
+anyhow = "*"
+futures = "*"
