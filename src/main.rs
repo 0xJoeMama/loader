@@ -1,6 +1,7 @@
-use std::{fmt::Debug, fs, path::PathBuf};
+use std::{collections::HashMap, env, fmt::Debug, path::PathBuf};
 
 use anyhow::{Ok, Result};
+use serde::Deserialize;
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
@@ -54,12 +55,40 @@ impl<'a> Lib<'a> {
     }
 }
 
+#[derive(Deserialize, Debug)]
+struct Version {
+    url: String,
+    id: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct VersionManifest {
+    versions: Vec<Version>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let version_data = fs::read_to_string("1.20.json")?;
+    let mut args = env::args();
+    // omit program
+    args.next().unwrap();
+    let version = args.next().expect("pass version id");
 
-    let json: Value = serde_json::from_str(&version_data)?;
-    let urls: Vec<_> = json
+    let mf = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
+        .await?
+        .json::<VersionManifest>()
+        .await?;
+    let versions = mf
+        .versions
+        .into_iter()
+        .map(|v| (v.id, v.url))
+        .collect::<HashMap<_, _>>();
+
+    let version_data = reqwest::get(&versions[&version])
+        .await?
+        .json::<Value>()
+        .await?;
+
+    let urls: Vec<_> = version_data
         .get("libraries")
         .unwrap()
         .as_array()
@@ -83,28 +112,31 @@ async fn main() -> Result<()> {
         .flat_map(|it| it.to_str())
         .collect::<Vec<_>>()
         .join(":");
-    let client_url = json
+    let client_url = version_data
         .get("downloads")
         .and_then(|downloads| downloads.get("client")?.get("url")?.as_str())
         .unwrap();
 
-    let client_mappins = json
+    let client_mappins = version_data
         .get("downloads")
         .and_then(|downloads| downloads.get("client_mappings")?.get("url")?.as_str())
         .unwrap();
 
     _ = tokio::join!(
-        download_file(client_url, "client.jar"),
-        download_file(client_mappins, "client_mappings.mappings")
+        download_file(client_url, format!("{version}.jar")),
+        download_file(client_mappins, format!("{version}_mappings.jar"))
     );
 
-    paths.push_str(":libs/client.jar");
-    let mut run_cmd = String::new();
-    run_cmd.push_str("java -cp \"");
-    run_cmd.push_str(&paths);
-    run_cmd.push_str("\" net.minecraft.client.main.Main --version JoeMamacraft --accessToken 69420");
-
-    tokio::fs::write("start.sh", run_cmd).await?;
+    paths.push_str(&format!(":libs/{version}.jar"));
+    let run_cmd = [
+        "java -cp ",
+        &paths,
+        "net.minecraft.client.main.Main",
+        "--version JoeMamaCraft",
+        "--accessToken 69420",
+    ]
+    .join(" ");
+    tokio::fs::write(format!("start-{version}.sh"), run_cmd).await?;
 
     Ok(())
 }
