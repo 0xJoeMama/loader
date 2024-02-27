@@ -51,3 +51,4 @@ pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
 
 pub mod bootstrap;
 pub mod decomp;
+pub mod loader_deps;

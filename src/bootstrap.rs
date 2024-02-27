@@ -33,7 +33,7 @@ struct VersionManifest {
     versions: Vec<Version>,
 }
 
-pub async fn bootstrap(version: &str) -> Result<()> {
+pub async fn bootstrap(version: &str) -> Result<Vec<String>> {
     let mf = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
         .await?
         .json::<VersionManifest>()
@@ -43,12 +43,10 @@ pub async fn bootstrap(version: &str) -> Result<()> {
         .into_iter()
         .map(|v| (v.id, v.url))
         .collect::<HashMap<_, _>>();
-
     let version_data = reqwest::get(&versions[version])
         .await?
         .json::<Value>()
         .await?;
-
     let urls: Vec<_> = version_data
         .get("libraries")
         .unwrap()
@@ -66,13 +64,14 @@ pub async fn bootstrap(version: &str) -> Result<()> {
         .map(|(url, path)| Lib::new(url, path))
         .map(Lib::spawn_download_proc)
         .collect();
-    let mut paths = futures::future::join_all(urls)
+    let paths = futures::future::join_all(urls)
         .await
         .iter()
         .flatten()
         .flat_map(|it| it.to_str())
-        .collect::<Vec<_>>()
-        .join(":");
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
     let client_url = version_data
         .get("downloads")
         .and_then(|downloads| downloads.get("client")?.get("url")?.as_str())
@@ -88,16 +87,5 @@ pub async fn bootstrap(version: &str) -> Result<()> {
         crate::download_file(client_mappins, format!("{version}.proguard"))
     );
 
-    paths.push_str(&format!(":libs/{version}.jar"));
-    let run_cmd = [
-        "java -cp ",
-        &paths,
-        "net.minecraft.client.main.Main",
-        "--version JoeMamaCraft",
-        "--accessToken 69420",
-    ]
-    .join(" ");
-    tokio::fs::write(format!("start-{version}.sh"), run_cmd).await?;
-
-    Ok(())
+    Ok(paths)
 }
