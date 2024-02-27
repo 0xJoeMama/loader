@@ -3,43 +3,10 @@ use std::{collections::HashMap, env, fmt::Debug, path::PathBuf};
 use anyhow::{Ok, Result};
 use serde::Deserialize;
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
 
 struct Lib<'a> {
     url: &'a str,
     path: PathBuf,
-}
-
-async fn download_file<T>(url: &str, dest: T) -> Result<PathBuf>
-where
-    T: Into<PathBuf> + Debug + Clone,
-{
-    use tokio::fs;
-    println!("Attempting download of {:?}", dest);
-    let init = PathBuf::from("libs");
-    let mut init = init.join(dest.clone().into());
-    let final_file = init.clone();
-    // go to parent to get dir
-    init.pop();
-    fs::create_dir_all(init).await?;
-    let file = fs::OpenOptions::new()
-        .create_new(true)
-        .append(true)
-        .open(&final_file)
-        .await;
-
-    if let Result::Ok(mut file) = file {
-        println!("Starting download of file: {:?} from {url}", dest);
-
-        let mut res = reqwest::get(url).await?;
-        while let Some(chunk) = res.chunk().await? {
-            _ = file.write(&chunk).await?;
-        }
-
-        file.flush().await?;
-    }
-
-    Ok(final_file)
 }
 
 impl<'a> Lib<'a> {
@@ -51,7 +18,7 @@ impl<'a> Lib<'a> {
     }
 
     async fn spawn_download_proc(self) -> Result<PathBuf> {
-        download_file(self.url, self.path).await
+        piston_meta::download_file(self.url, self.path).await
     }
 }
 
@@ -123,8 +90,8 @@ async fn main() -> Result<()> {
         .unwrap();
 
     _ = tokio::join!(
-        download_file(client_url, format!("{version}.jar")),
-        download_file(client_mappins, format!("{version}_mappings.jar"))
+        piston_meta::download_file(client_url, format!("{version}.jar")),
+        piston_meta::download_file(client_mappins, format!("{version}.proguard"))
     );
 
     paths.push_str(&format!(":libs/{version}.jar"));

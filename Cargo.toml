@@ -3,6 +3,14 @@ name = "piston_meta"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name="decomp"
+path="decomp/main.rs"
+
+[[bin]]
+name="bootstrap"
+path="bootstrap/main.rs"
+
 [dependencies]
 serde = { version = "*", features = ["derive"]}
 serde_json = "*"
