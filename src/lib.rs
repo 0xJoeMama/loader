@@ -48,3 +48,6 @@ pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     _ = cmd.spawn().and_then(|c| c.wait_with_output())?;
     Ok(())
 }
+
+pub mod bootstrap;
+pub mod decomp;

@@ -1,19 +1,13 @@
-use std::{env, fs};
+use std::fs;
 
+use crate::download_file;
+use crate::run_cmd;
 use anyhow::{Ok, Result};
-use piston_meta::run_cmd;
 const ENIGMA_URL: &str =
     "https://maven.quiltmc.org/repository/release/org/quiltmc/enigma-cli/2.2.1/enigma-cli-2.2.1-all.jar";
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let mut args = env::args();
-
-    // omit program
-    args.next().unwrap();
-    let version = args.next().expect("please provide a version to decompile");
-
-    piston_meta::download_file(ENIGMA_URL, "enigma.jar").await?;
+pub async fn decomp(version: &str) -> Result<()> {
+    download_file(ENIGMA_URL, "enigma.jar").await?;
 
     let source_jar = format!("libs/{version}-sources.jar");
     let dest_dir = format!("libs/{version}");
@@ -41,7 +35,7 @@ async fn main() -> Result<()> {
             "decompile",
             "vineflower",
             &source_jar,
-            &dest_dir
+            &dest_dir,
         ],
     )
     .expect("failed to decompile sources");

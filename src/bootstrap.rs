@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fmt::Debug, path::PathBuf};
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use anyhow::{Ok, Result};
 use serde::Deserialize;
@@ -18,7 +18,7 @@ impl<'a> Lib<'a> {
     }
 
     async fn spawn_download_proc(self) -> Result<PathBuf> {
-        piston_meta::download_file(self.url, self.path).await
+        crate::download_file(self.url, self.path).await
     }
 }
 
@@ -33,13 +33,7 @@ struct VersionManifest {
     versions: Vec<Version>,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let mut args = env::args();
-    // omit program
-    args.next().unwrap();
-    let version = args.next().expect("pass version id");
-
+pub async fn bootstrap(version: &str) -> Result<()> {
     let mf = reqwest::get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
         .await?
         .json::<VersionManifest>()
@@ -50,7 +44,7 @@ async fn main() -> Result<()> {
         .map(|v| (v.id, v.url))
         .collect::<HashMap<_, _>>();
 
-    let version_data = reqwest::get(&versions[&version])
+    let version_data = reqwest::get(&versions[version])
         .await?
         .json::<Value>()
         .await?;
@@ -90,8 +84,8 @@ async fn main() -> Result<()> {
         .unwrap();
 
     _ = tokio::join!(
-        piston_meta::download_file(client_url, format!("{version}.jar")),
-        piston_meta::download_file(client_mappins, format!("{version}.proguard"))
+        crate::download_file(client_url, format!("{version}.jar")),
+        crate::download_file(client_mappins, format!("{version}.proguard"))
     );
 
     paths.push_str(&format!(":libs/{version}.jar"));
