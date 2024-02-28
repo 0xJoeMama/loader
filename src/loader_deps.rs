@@ -27,7 +27,7 @@ pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
         .map(|url| {
             download_file(
                 &url.url,
-                format!("{}/{}", output.to_string_lossy(), url.name),
+                format!("{}/loader_libs/{}", output.to_string_lossy(), url.name),
             )
         })
         .collect::<Vec<_>>();

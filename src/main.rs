@@ -40,7 +40,13 @@ async fn main() {
     cp.append(&mut ld);
     let cp = cp.join(":");
 
-    tokio::fs::write(format!("{target_version}.classpath"), cp)
-        .await
-        .expect("couldn't write classpath file");
+    tokio::fs::write(
+        format!(
+            "{}/{target_version}.classpath",
+            output_path.to_string_lossy()
+        ),
+        cp,
+    )
+    .await
+    .expect("couldn't write classpath file");
 }
