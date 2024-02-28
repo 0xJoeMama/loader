@@ -4,26 +4,26 @@ use std::path::PathBuf;
 use std::process::Command;
 use tokio::io::AsyncWriteExt;
 
+// TODO: Migrate all dest usages after adding output parameter
 pub async fn download_file<T>(url: &str, dest: T) -> Result<PathBuf>
 where
     T: Into<PathBuf> + Debug + Clone,
 {
     use tokio::fs;
-    println!("Attempting download of {:?}", dest);
-    let init = PathBuf::from("libs");
-    let mut init = init.join(dest.clone().into());
-    let final_file = init.clone();
-    // go to parent to get dir
-    init.pop();
-    fs::create_dir_all(init).await?;
+    let dest: PathBuf = dest.into();
+    fs::create_dir_all(
+        dest.parent()
+            .expect("cannot accept root as a destination folder"),
+    )
+    .await?;
     let file = fs::OpenOptions::new()
         .create_new(true)
         .append(true)
-        .open(&final_file)
+        .open(&dest)
         .await;
 
     if let Result::Ok(mut file) = file {
-        println!("Starting download of file: {:?} from {url}", dest);
+        println!("[INFO] Starting download of file: {:?} from {url}", dest);
 
         let mut res = reqwest::get(url).await?;
         while let Some(chunk) = res.chunk().await? {
@@ -32,14 +32,19 @@ where
 
         file.flush().await?;
     }
+    println!(
+        "[INFO] File {} finished downloading",
+        dest.to_string_lossy()
+    );
 
-    Ok(final_file)
+    Ok(dest)
 }
 
 pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     let mut cmd = Command::new(program);
     cmd.args(args);
 
+    print!("[CMD] {program}");
     for i in cmd.get_args() {
         print!("{} ", i.to_string_lossy());
     }

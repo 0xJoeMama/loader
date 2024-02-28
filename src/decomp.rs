@@ -1,26 +1,28 @@
-use std::fs;
-
 use crate::download_file;
 use crate::run_cmd;
 use anyhow::{Ok, Result};
+use std::fs;
+use std::path::Path;
+
 const ENIGMA_URL: &str =
     "https://maven.quiltmc.org/repository/release/org/quiltmc/enigma-cli/2.2.1/enigma-cli-2.2.1-all.jar";
 
-pub async fn decomp(version: &str) -> Result<()> {
-    download_file(ENIGMA_URL, "enigma.jar").await?;
+pub async fn decomp(version: &str, output: &Path) -> Result<()> {
+    let output = output.to_string_lossy();
+    download_file(ENIGMA_URL, format!("{output}/enigma.jar")).await?;
 
-    let source_jar = format!("libs/{version}-sources.jar");
-    let dest_dir = format!("libs/{version}");
+    let source_jar = format!("{output}/{version}-sources.jar");
+    let dest_dir = format!("{output}/{version}");
 
     run_cmd(
         "java",
         &[
             "-jar",
-            "libs/enigma.jar",
+            &format!("{output}/enigma.jar"),
             "deobfuscate",
-            &format!("libs/{version}.jar"),
+            &format!("{output}/{version}.jar"),
             &source_jar,
-            &format!("libs/{version}.proguard"),
+            &format!("{output}/{version}.proguard"),
         ],
     )
     .expect("failed to run deobfuscation");
@@ -31,7 +33,7 @@ pub async fn decomp(version: &str) -> Result<()> {
         "java",
         &[
             "-jar",
-            "libs/enigma.jar",
+            &format!("{output}/enigma.jar"),
             "decompile",
             "vineflower",
             &source_jar,

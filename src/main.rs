@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 use piston_meta::{bootstrap, decomp, loader_deps};
 
@@ -8,6 +10,8 @@ struct Args {
     target_version: String,
     #[arg(short = 'n', long)]
     skip_decomp: bool,
+    #[arg(short, long)]
+    output_path: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -15,19 +19,21 @@ async fn main() {
     let Args {
         target_version,
         skip_decomp,
+        output_path,
     } = Args::parse();
+    let output_path = output_path.unwrap_or_else(|| "libs".into());
 
-    let mut cp = bootstrap::bootstrap(&target_version)
+    let mut cp = bootstrap::bootstrap(&target_version, &output_path)
         .await
         .expect("couldn't bootstrap");
 
     if !skip_decomp {
-        decomp::decomp(&target_version)
+        decomp::decomp(&target_version, &output_path)
             .await
             .expect("couldnt' decompile");
     }
 
-    let mut ld = loader_deps::loader_deps()
+    let mut ld = loader_deps::loader_deps(&output_path)
         .await
         .expect("couldnt get loader dependencies");
 
