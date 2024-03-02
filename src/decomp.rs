@@ -35,7 +35,7 @@ pub async fn decomp(version: &str, output: &Path) -> Result<()> {
             "-jar",
             &format!("{output}/enigma.jar"),
             "decompile",
-            "vineflower",
+            "cfr",
             &source_jar,
             &dest_dir,
         ],

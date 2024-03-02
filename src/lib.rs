@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use tokio::io::AsyncWriteExt;
 
-// TODO: Migrate all dest usages after adding output parameter
+// TODO: probably do some SHA1 verification
 pub async fn download_file<T>(url: &str, dest: T) -> Result<PathBuf>
 where
     T: Into<PathBuf> + Debug + Clone,
@@ -31,11 +31,12 @@ where
         }
 
         file.flush().await?;
+
+        println!(
+            "[INFO] File {} finished downloading",
+            dest.to_string_lossy()
+        );
     }
-    println!(
-        "[INFO] File {} finished downloading",
-        dest.to_string_lossy()
-    );
 
     Ok(dest)
 }

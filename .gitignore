@@ -4,3 +4,4 @@ loader/logs/
 loader/run/
 loader/loader_libs/
 start-*.sh
+loader/build

@@ -2,9 +2,12 @@ use std::path::Path;
 
 use anyhow::{Ok, Result};
 use serde::Deserialize;
-use tokio::fs;
 
 use crate::download_file;
+
+// HARDCODED because why not. At the end of the day nobody should be messing with the loader
+// dependencies
+const LOADER_DEPS: &str = include_str!("../loader_deps.json");
 
 #[derive(Deserialize)]
 struct DepManifest {
@@ -18,8 +21,7 @@ struct Dep {
 }
 
 pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
-    let dep_mf = fs::read_to_string("loader_deps.json").await?;
-    let dep_mf: DepManifest = serde_json::from_str(&dep_mf)?;
+    let dep_mf: DepManifest = serde_json::from_str(LOADER_DEPS)?;
 
     let files = dep_mf
         .deps
