@@ -1,14 +1,17 @@
 use anyhow::Result;
+use serde::Deserialize;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::process::Command;
 use tokio::io::AsyncWriteExt;
 
 // TODO: probably do some SHA1 verification
-pub async fn download_file<T>(url: &str, dest: T) -> Result<PathBuf>
+pub async fn download_file<T, U>(url: U, dest: T) -> Result<PathBuf>
 where
     T: Into<PathBuf> + Debug + Clone,
+    U: AsRef<str>,
 {
+    let url = url.as_ref();
     use tokio::fs;
     let dest: PathBuf = dest.into();
     fs::create_dir_all(
@@ -55,6 +58,18 @@ pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+#[derive(Deserialize, Debug)]
+pub struct Version {
+    pub url: String,
+    pub id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct VersionManifest {
+    pub versions: Vec<Version>,
+}
+
+pub mod assets;
 pub mod bootstrap;
 pub mod decomp;
 pub mod loader_deps;

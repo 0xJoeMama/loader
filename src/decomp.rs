@@ -9,7 +9,7 @@ const ENIGMA_URL: &str =
 
 pub async fn decomp(version: &str, output: &Path) -> Result<()> {
     println!("[STEP] Decompiling the game...");
-    
+
     let output = output.to_string_lossy();
     download_file(ENIGMA_URL, format!("{output}/enigma.jar")).await?;
 

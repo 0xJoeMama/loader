@@ -35,8 +35,7 @@ pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
         })
         .collect::<Vec<_>>();
 
-
-    let res  =futures::future::join_all(files)
+    let res = futures::future::join_all(files)
         .await
         .into_iter()
         .flatten()

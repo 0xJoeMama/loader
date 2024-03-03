@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use loader_make::{bootstrap, decomp, loader_deps, make_loader};
+use loader_make::{assets, bootstrap, decomp, loader_deps, make_loader};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -14,6 +14,8 @@ struct Args {
     output_path: Option<PathBuf>,
     #[arg(long = "make-loader")]
     make_loader: bool,
+    #[arg(short = 'a')]
+    skip_assets: bool,
 }
 
 #[tokio::main]
@@ -23,12 +25,19 @@ async fn main() {
         skip_decomp,
         output_path,
         make_loader,
+        skip_assets,
     } = Args::parse();
     let output_path = output_path.unwrap_or_else(|| "libs".into());
 
     let mut cp = bootstrap::bootstrap(&target_version, &output_path)
         .await
         .expect("couldn't bootstrap");
+
+    if !skip_assets {
+        assets::assets(&target_version, &output_path)
+            .await
+            .expect("couldn't fetch assets");
+    }
 
     if !skip_decomp {
         decomp::decomp(&target_version, &output_path)

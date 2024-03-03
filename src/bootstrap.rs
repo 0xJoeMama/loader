@@ -1,14 +1,15 @@
 use std::{
     collections::HashMap,
-    fmt::Debug,
     path::{Path, PathBuf},
 };
 
 use anyhow::{Ok, Result};
-use serde::Deserialize;
 use serde_json::Value;
 
-const VERSION_MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+use crate::VersionManifest;
+
+pub(crate) const VERSION_MANIFEST: &str =
+    "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 struct Lib<'a> {
     url: &'a str,
@@ -23,17 +24,6 @@ impl<'a> Lib<'a> {
     async fn spawn_download_proc(self) -> Result<PathBuf> {
         crate::download_file(self.url, self.path).await
     }
-}
-
-#[derive(Deserialize, Debug)]
-struct Version {
-    url: String,
-    id: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct VersionManifest {
-    versions: Vec<Version>,
 }
 
 pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
@@ -88,7 +78,7 @@ pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
 
     _ = tokio::join!(
         crate::download_file(
-            client_url,
+            &client_url,
             format!("{}/{version}.jar", output.to_string_lossy())
         ),
         crate::download_file(
@@ -96,7 +86,6 @@ pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
             format!("{}/{version}.proguard", output.to_string_lossy())
         ),
     );
-
 
     println!("[STEP] Finished bootstraping run environment");
     Ok(paths)
