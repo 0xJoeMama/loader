@@ -14,8 +14,8 @@ struct Args {
     output_path: Option<PathBuf>,
     #[arg(long = "make-loader")]
     make_loader: bool,
-    #[arg(short = 'a')]
-    skip_assets: bool,
+    // #[arg(short = 'a')]
+    // skip_assets: bool,
 }
 
 #[tokio::main]
@@ -25,7 +25,6 @@ async fn main() {
         skip_decomp,
         output_path,
         make_loader,
-        skip_assets,
     } = Args::parse();
     let output_path = output_path.unwrap_or_else(|| "libs".into());
 
@@ -33,11 +32,9 @@ async fn main() {
         .await
         .expect("couldn't bootstrap");
 
-    if !skip_assets {
-        assets::assets(&target_version, &output_path)
-            .await
-            .expect("couldn't fetch assets");
-    }
+    let (asset_id, asset_dir) = assets::assets(&target_version, &output_path)
+        .await
+        .expect("couldn't fetch assets");
 
     if !skip_decomp {
         decomp::decomp(&target_version, &output_path)
@@ -52,7 +49,7 @@ async fn main() {
     cp.append(&mut ld);
 
     if make_loader {
-        make_loader::make_loader(&target_version, &output_path, &cp)
+        make_loader::make_loader(&target_version, &output_path, &cp, &asset_dir, &asset_id)
             .await
             .expect("couldn't create loader script");
     }

@@ -168,7 +168,7 @@ fun main(args: Array<String>) {
   //=========================================================================================
   val t = Thread {
     val mainMethod = mainClass.getMethod("main", Array<String>::class.java)
-    mainMethod.invoke(null, arrayOf("--version", "JoesCraft", "--accessToken", "69420", "--gameDir", "run"))
+    mainMethod.invoke(null, args.copyOfRange(1, args.size))
   }
   t.setContextClassLoader(loader)
   t.start()

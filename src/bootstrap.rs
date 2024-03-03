@@ -1,30 +1,13 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{Ok, Result};
 use serde_json::Value;
+use tokio::task;
 
-use crate::VersionManifest;
+use crate::{download_file, VersionManifest};
 
 pub(crate) const VERSION_MANIFEST: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-
-struct Lib<'a> {
-    url: &'a str,
-    path: PathBuf,
-}
-
-impl<'a> Lib<'a> {
-    fn new(url: &'a str, path: PathBuf) -> Lib<'a> {
-        Self { url, path }
-    }
-
-    async fn spawn_download_proc(self) -> Result<PathBuf> {
-        crate::download_file(self.url, self.path).await
-    }
-}
 
 pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
     println!("[STEP] Bootstraping run environment...");
@@ -48,23 +31,21 @@ pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
         .unwrap()
         .iter()
         .filter_map(|lib| {
-            let artifact = lib.get("downloads").unwrap().get("artifact")?;
+            let artifact = lib.get("downloads")?.get("artifact")?;
             (
-                artifact.get("url")?.as_str()?,
+                artifact.get("url")?.as_str()?.to_owned(),
                 output.join(artifact.get("path")?.as_str()?),
             )
                 .into()
         })
-        .map(|(url, path)| Lib::new(url, path))
-        .map(Lib::spawn_download_proc)
+        .map(|(url, path)| task::spawn(download_file(url, path)))
         .collect();
-    let paths = futures::future::join_all(urls)
-        .await
-        .iter()
-        .flatten()
-        .flat_map(|it| it.to_str())
-        .map(str::to_string)
-        .collect::<Vec<_>>();
+
+    // TODO: Make sure all files are properly returned
+    let mut paths = Vec::with_capacity(urls.len());
+    for res in urls {
+        paths.push(res.await??.to_string_lossy().to_string());
+    }
 
     let client_url = version_data
         .get("downloads")

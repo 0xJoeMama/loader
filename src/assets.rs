@@ -1,27 +1,14 @@
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, StreamExt};
 use serde_json::Value;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-use tokio::fs;
+use tokio::{fs, task};
 
 use serde::Deserialize;
 
 use crate::{bootstrap, download_file, VersionManifest};
-
-pub struct Assets {
-    pub index: PathBuf,
-    pub objects: PathBuf,
-    pub id: String,
-}
-
-impl From<Assets> for String {
-    fn from(_value: Assets) -> Self {
-        todo!()
-    }
-}
 
 #[derive(Deserialize)]
 struct AssetIndex {
@@ -30,24 +17,24 @@ struct AssetIndex {
 
 impl AssetIndex {
     async fn download_assets(&self, object_path: &Path) -> Result<()> {
-        let mut download_tasks = self
+        let download_tasks = self
             .objects
             .values()
             .map(|obj| async {
-                tokio::spawn(download_file(
+                task::spawn(download_file(
                     obj.get_url(),
                     object_path.join(obj.get_path()),
                 ))
                 .await
             })
-            .collect::<FuturesUnordered<_>>();
+            .collect::<Vec<_>>();
 
-        while let Some(res) = download_tasks.next().await {
-            if let Result::Err(err) = res {
-                return Result::Err(err.into());
+        for res in download_tasks {
+            if let Result::Err(e) = res.await? {
+                println!("could not download file {}", object_path.to_string_lossy());
+                return Result::Err(e);
             }
         }
-
         Ok(())
     }
 }
@@ -72,7 +59,8 @@ impl AssetObject {
     }
 }
 
-pub async fn assets(version: &str, output_path: &Path) -> Result<Assets> {
+pub async fn assets(version: &str, output_path: &Path) -> Result<(String, PathBuf)> {
+    println!("[STEP] Downloading assets...");
     let output_path = output_path.join("assets");
     let mf = reqwest::get(bootstrap::VERSION_MANIFEST)
         .await?
@@ -99,9 +87,10 @@ pub async fn assets(version: &str, output_path: &Path) -> Result<Assets> {
     let objects = output_path.join("objects");
     idx.download_assets(&objects).await?;
 
-    let index = output_path.join(format!("indices/{id}.json"));
+    let index = output_path.join(format!("indexes/{id}.json"));
     fs::create_dir_all(index.parent().expect("can't use root as object dir")).await?;
     fs::write(&index, idx_json).await?;
 
-    Ok(Assets { index, objects, id })
+    println!("[STEP] Assets downloaded");
+    Ok((id, output_path))
 }

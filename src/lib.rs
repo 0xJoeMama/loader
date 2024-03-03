@@ -26,7 +26,10 @@ where
         .await;
 
     if let Result::Ok(mut file) = file {
-        println!("[INFO] Starting download of file: {:?} from {url}", dest);
+        println!(
+            "[INFO] Starting download of file: {} from {url}",
+            dest.to_string_lossy()
+        );
 
         let mut res = reqwest::get(url).await?;
         while let Some(chunk) = res.chunk().await? {
