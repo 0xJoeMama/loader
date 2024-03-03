@@ -5,7 +5,7 @@ set -e
 
 # Build
 echo "[INFO] building the loader"
-kotlinc -cp $CP:libs/loader_libs/asm.jar -include-runtime -d build/loader.jar io/github/joemama/loader/main.kt
+kotlinc -cp $CP -include-runtime -d build/loader.jar io/github/joemama/loader/entrypoint/Loader.kt io/github/joemama/loader/main.kt 
 echo "[INFO] loader was built"
 
 # Run

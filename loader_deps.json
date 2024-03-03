@@ -1,8 +1,12 @@
 {
   "deps": [
     {
-      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-all/5.2/asm-all-5.2.jar",
+      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm/9.6/asm-9.6.jar",
       "name": "asm.jar"
+    },
+    {
+      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar",
+      "name": "asm-tree.jar"
     }
   ]
 }

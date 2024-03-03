@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use piston_meta::{bootstrap, decomp, loader_deps};
+use loader_make::{bootstrap, decomp, loader_deps};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
