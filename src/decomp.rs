@@ -8,6 +8,8 @@ const ENIGMA_URL: &str =
     "https://maven.quiltmc.org/repository/release/org/quiltmc/enigma-cli/2.2.1/enigma-cli-2.2.1-all.jar";
 
 pub async fn decomp(version: &str, output: &Path) -> Result<()> {
+    println!("[STEP] Decompiling the game...");
+    
     let output = output.to_string_lossy();
     download_file(ENIGMA_URL, format!("{output}/enigma.jar")).await?;
 
@@ -42,5 +44,6 @@ pub async fn decomp(version: &str, output: &Path) -> Result<()> {
     )
     .expect("failed to decompile sources");
 
+    println!("[STEP] Finished decompiling the game");
     Ok(())
 }

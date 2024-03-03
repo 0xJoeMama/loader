@@ -21,6 +21,7 @@ struct Dep {
 }
 
 pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
+    println!("[STEP] Fetching loader dependencies...");
     let dep_mf: DepManifest = serde_json::from_str(LOADER_DEPS)?;
 
     let files = dep_mf
@@ -34,10 +35,13 @@ pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
         })
         .collect::<Vec<_>>();
 
-    Ok(futures::future::join_all(files)
+
+    let res  =futures::future::join_all(files)
         .await
         .into_iter()
         .flatten()
         .map(|it| it.to_string_lossy().to_string())
-        .collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    println!("[STEP] Finished fetching loader dependencies");
+    Ok(res)
 }

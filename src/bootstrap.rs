@@ -37,6 +37,7 @@ struct VersionManifest {
 }
 
 pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
+    println!("[STEP] Bootstraping run environment...");
     let mf = reqwest::get(VERSION_MANIFEST)
         .await?
         .json::<VersionManifest>()
@@ -96,5 +97,7 @@ pub async fn bootstrap(version: &str, output: &Path) -> Result<Vec<String>> {
         ),
     );
 
+
+    println!("[STEP] Finished bootstraping run environment");
     Ok(paths)
 }

@@ -1,0 +1,14 @@
+CP=${cp}
+
+set -e
+
+# Build
+echo "[INFO] building the loader for version ${version}"
+kotlinc -cp $CP -include-runtime -d build/loader.jar io/github/joemama/loader/entrypoint/Loader.kt io/github/joemama/loader/main.kt 
+echo "[INFO] loader was built"
+
+# Run
+echo "[INFO] running the loader"
+java -cp $CP:build/loader.jar io.github.joemama.loader.MainKt ${lib_dir}/${version}.jar $@
+echo "[INFO] loader has exited"
+
