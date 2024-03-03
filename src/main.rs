@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use loader_make::{assets, bootstrap, decomp, loader_deps, make_loader};
+use loader_make::{assets, bootstrap, decomp, loader_deps, make_loader, VersionManifest};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -14,8 +14,6 @@ struct Args {
     output_path: Option<PathBuf>,
     #[arg(long = "make-loader")]
     make_loader: bool,
-    // #[arg(short = 'a')]
-    // skip_assets: bool,
 }
 
 #[tokio::main]
@@ -27,17 +25,26 @@ async fn main() {
         make_loader,
     } = Args::parse();
     let output_path = output_path.unwrap_or_else(|| "libs".into());
+    println!("[STEP] Getting version manifest");
+    let mf = VersionManifest::fetch()
+        .await
+        .expect("couldn't get version manifest");
+    println!("[STEP] Getting version metadata for version {target_version}");
+    let version = mf
+        .get_version(&target_version)
+        .await
+        .expect("unknown version");
 
-    let mut cp = bootstrap::bootstrap(&target_version, &output_path)
+    let mut cp = bootstrap::bootstrap(&version, &output_path)
         .await
         .expect("couldn't bootstrap");
 
-    let (asset_id, asset_dir) = assets::assets(&target_version, &output_path)
+    let (asset_id, asset_dir) = assets::assets(&version, &output_path)
         .await
         .expect("couldn't fetch assets");
 
     if !skip_decomp {
-        decomp::decomp(&target_version, &output_path)
+        decomp::decomp(&version.id, &output_path)
             .await
             .expect("couldnt' decompile");
     }
@@ -49,7 +56,7 @@ async fn main() {
     cp.append(&mut ld);
 
     if make_loader {
-        make_loader::make_loader(&target_version, &output_path, &cp, &asset_dir, &asset_id)
+        make_loader::make_loader(&version.id, &output_path, &cp, &asset_dir, &asset_id)
             .await
             .expect("couldn't create loader script");
     }

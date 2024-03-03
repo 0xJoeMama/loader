@@ -1,9 +1,15 @@
 use anyhow::Result;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::io::AsyncWriteExt;
+use tokio::task;
+
+pub const RESOURCES_URL: &str = "https://resources.download.minecraft.net/";
+pub const VERSION_MANIFEST: &str =
+    "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 // TODO: probably do some SHA1 verification
 pub async fn download_file<T, U>(url: U, dest: T) -> Result<PathBuf>
@@ -61,6 +67,42 @@ pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+#[derive(Deserialize)]
+pub struct Artifact {
+    pub url: String,
+    pub path: String,
+}
+
+#[derive(Deserialize)]
+pub struct VersionDownload {
+    pub url: String,
+}
+
+#[derive(Deserialize)]
+pub struct Download {
+    pub artifact: Artifact,
+}
+
+#[derive(Deserialize)]
+pub struct Library {
+    pub downloads: Download,
+}
+
+#[derive(Deserialize)]
+pub struct AssetIndexMeta {
+    pub id: String,
+    pub url: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionMeta {
+    pub libraries: Vec<Library>,
+    pub downloads: HashMap<String, VersionDownload>,
+    pub asset_index: AssetIndexMeta,
+    pub id: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct Version {
     pub url: String,
@@ -70,6 +112,77 @@ pub struct Version {
 #[derive(Deserialize, Debug)]
 pub struct VersionManifest {
     pub versions: Vec<Version>,
+}
+
+impl VersionManifest {
+    pub async fn fetch() -> Result<VersionManifest> {
+        Ok(reqwest::get(VERSION_MANIFEST)
+            .await?
+            .json::<VersionManifest>()
+            .await?)
+    }
+
+    pub async fn get_version(&self, version: impl AsRef<str>) -> Result<VersionMeta> {
+        let version = self
+            .versions
+            .iter()
+            .position(|v| &v.id == version.as_ref())
+            .map(|i| &self.versions[i])
+            .expect("unknown version");
+
+        Ok(reqwest::get(&version.url)
+            .await?
+            .json::<VersionMeta>()
+            .await?)
+    }
+}
+
+#[derive(Deserialize)]
+pub struct AssetIndex {
+    pub objects: HashMap<String, AssetObject>,
+}
+
+impl AssetIndex {
+    pub async fn download_assets(&self, object_path: &Path) -> Result<()> {
+        let download_tasks = self
+            .objects
+            .values()
+            .map(|obj| async {
+                task::spawn(download_file(
+                    obj.get_url(),
+                    object_path.join(obj.get_path()),
+                ))
+                .await
+            })
+            .collect::<Vec<_>>();
+
+        for res in download_tasks {
+            if let Result::Err(e) = res.await? {
+                println!("could not download file {}", object_path.to_string_lossy());
+                return Result::Err(e);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+pub struct AssetObject {
+    pub hash: String,
+}
+
+impl AssetObject {
+    fn get_url(&self) -> String {
+        let mut path = self.get_path();
+        path.insert_str(0, RESOURCES_URL);
+        path
+    }
+    fn get_path(&self) -> String {
+        let mut res = String::from(&self.hash[0..2]);
+        res.push('/');
+        res.push_str(&self.hash);
+        res
+    }
 }
 
 pub mod assets;
