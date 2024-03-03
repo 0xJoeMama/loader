@@ -31,12 +31,12 @@ interface Transform {
 
 object BuiltInRegistriesTransform: Transform {
   override val classTarget = "ahi"
-  override val name = "Bootstrap transform for entrypoints"
+  override val name = "bootstrap transform for entrypoints"
 
   override fun transform(clazz: ClassNode) {
     for (mn in clazz.methods) {
       if (mn.name == "a" && mn.desc == "()V") { // bootstrap()V
-        // ======================== Code from ahi(aka Bootstrap)=======================
+        // ======================== Code from ahi(Bootstrap)=======================
         // public static void bootStrap() {
         //     if (isBootstrapped) {
         //         return;
@@ -56,15 +56,14 @@ object BuiltInRegistriesTransform: Transform {
         //     DispenseItemBehavior.bootStrap();
         //     CauldronInteraction.bootStrap();
         //     ================= Our Code ============================================
-        //     System.out.println("Hello world!");                                  ||
+        //     LoaderKt.loaderInit();                                               ||
         //     =======================================================================
         //     BuiltInRegistries.bootStrap();
         //     CreativeModeTabs.validate();
         //     Bootstrap.wrapStreams();
         //     bootstrapDuration.set(Duration.between((Temporal)$$0, (Temporal)Instant.now()).toMillis());
         // }
-        val insns = InsnList()
-        insns.add(MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/loader/entrypoint/LoaderKt", "loaderInit", "()V"))
+        val methodCall = MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/loader/entrypoint/LoaderKt", "loaderInit", "()V")
         mn.instructions.find { insn -> 
           if (insn.type != AbstractInsnNode.METHOD_INSN) {
             false
@@ -73,7 +72,7 @@ object BuiltInRegistriesTransform: Transform {
             mIns.owner == "kd" && mIns.name == "a" && mIns.desc == "()V"
           }
         }?.let {
-          mn.instructions.insertBefore(it, insns)
+          mn.instructions.insertBefore(it, methodCall)
         }
       }
     }
@@ -85,43 +84,46 @@ class Transformer(private val jarLoc: String, private val gameJar: JarFile): Cla
     BuiltInRegistriesTransform
   )
   private val jarUrl: URL
+
   init {
     val p = Paths.get(jarLoc).toUri()
     this.jarUrl = URI("jar:" + p.toString() + "!/").toURL()
   }
-    // we are given a class that parent loaders couldn't load. It's our turn to load it using the game_jar
+
+  // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
   override protected fun findClass(name: String): Class<*> {
-      val normalName = name.replace(".", "/") + (".class")
-      val entry = this.gameJar.getJarEntry(normalName)
-      if (entry != null) {
-        var classBytes: ByteArray? = this.gameJar.getInputStream(entry).use {
-          ByteArrayOutputStream(it.available()).use { res ->
-            var b: Int = it.read()
-            while (b != -1) {
-              res.write(b)
+    val normalName = name.replace(".", "/") + (".class")
+    val entry = this.gameJar.getJarEntry(normalName)
+    if (entry == null) return super.findClass(name);
+    var classBytes: ByteArray? = this.gameJar.getInputStream(entry).use {
+      ByteArrayOutputStream(it.available()).use { res ->
+        var b: Int = it.read()
+          while (b != -1) {
+            res.write(b)
               b = it.read()
-            }
-
-            res.toByteArray()
           }
-        }
 
-        if (classBytes != null) {
-          for (t in this.transforms) {
-            if (t.classTarget == name) {
-              println("[TRANSFORMER] Transforming class $name using ${t.name}")
-              val classReader = ClassReader(classBytes)
-              val classNode = ClassNode()
-              classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
-              t.transform(classNode)
-              val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
-              classNode.accept(classWriter)
-              classBytes = classWriter.toByteArray()
-            }
-          }
-          return this.defineClass(name, classBytes, 0, classBytes!!.size)
+        res.toByteArray()
+      }
+    }
+
+    if (classBytes != null) {
+      for (t in this.transforms) {
+        if (t.classTarget == name) {
+          println("[TRANSFORMER] Transforming class $name using ${t.name}")
+            val classReader = ClassReader(classBytes)
+            val classNode = ClassNode()
+            classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
+            t.transform(classNode)
+            val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
+            classNode.accept(classWriter)
+            // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
+            classBytes = classWriter.toByteArray()
         }
       }
+      return this.defineClass(name, classBytes, 0, classBytes!!.size)
+    }
+
     return super.findClass(name)
   }
 
@@ -161,11 +163,11 @@ fun main(args: Array<String>) {
 
   println("[INFO] starting minecraft")
   println("[DEBUG] target game jars: ${args[0]}")
-  val mainClass = loader.loadClass("net.minecraft.client.main.Main")
   //=========================================================================================
-  //==============WARNING: Anything after this needs not use any of the transformable classes
+  //============= WARNING: Anything after this needs not use any of the transformable classes
   //====================               Here be dragons!                  ====================
   //=========================================================================================
+  val mainClass = loader.loadClass("net.minecraft.client.main.Main")
   val t = Thread {
     val mainMethod = mainClass.getMethod("main", Array<String>::class.java)
     mainMethod.invoke(null, args.copyOfRange(1, args.size))
