@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Ok, Result};
 use serde::Deserialize;
@@ -20,7 +20,7 @@ struct Dep {
     name: String,
 }
 
-pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
+pub async fn loader_deps(output: &Path) -> Result<Vec<PathBuf>> {
     println!("[STEP] Fetching loader dependencies...");
     let dep_mf: DepManifest = serde_json::from_str(LOADER_DEPS)?;
 
@@ -39,7 +39,6 @@ pub async fn loader_deps(output: &Path) -> Result<Vec<String>> {
         .await
         .into_iter()
         .flatten()
-        .map(|it| it.to_string_lossy().to_string())
         .collect::<Vec<_>>();
     println!("[STEP] Finished fetching loader dependencies");
     Ok(res)

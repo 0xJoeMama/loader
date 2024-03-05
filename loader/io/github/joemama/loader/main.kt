@@ -30,50 +30,50 @@ interface Transform {
 }
 
 object BuiltInRegistriesTransform: Transform {
-  override val classTarget = "ahi"
+  override val classTarget = "net.minecraft.server.Bootstrap"
   override val name = "bootstrap transform for entrypoints"
 
+    // ======================== Code from Bootstrap=======================
+    // public static void bootStrap() {
+    //     if (isBootstrapped) {
+    //         return;
+    //     }
+    //     isBootstrapped = true;
+    //     Instant $$0 = Instant.now();
+    //     if (BuiltInRegistries.REGISTRY.keySet().isEmpty()) {
+    //         throw new IllegalStateException("Unable to load registries");
+    //     }
+    //     FireBlock.bootStrap();
+    //     ComposterBlock.bootStrap();
+    //     if (EntityType.getKey(EntityType.PLAYER) == null) {
+    //         throw new IllegalStateException("Failed loading EntityTypes");
+    //     }
+    //     PotionBrewing.bootStrap();
+    //     EntitySelectorOptions.bootStrap();
+    //     DispenseItemBehavior.bootStrap();
+    //     CauldronInteraction.bootStrap();
+    //     ================= Our Code ============================================
+    //     LoaderKt.loaderInit();                                               ||
+    //     =======================================================================
+    //     BuiltInRegistries.bootStrap();
+    //     CreativeModeTabs.validate();
+    //     Bootstrap.wrapStreams();
+    //     bootstrapDuration.set(Duration.between((Temporal)$$0, (Temporal)Instant.now()).toMillis());
+    // }
   override fun transform(clazz: ClassNode) {
-    for (mn in clazz.methods) {
-      if (mn.name == "a" && mn.desc == "()V") { // bootstrap()V
-        // ======================== Code from ahi(Bootstrap)=======================
-        // public static void bootStrap() {
-        //     if (isBootstrapped) {
-        //         return;
-        //     }
-        //     isBootstrapped = true;
-        //     Instant $$0 = Instant.now();
-        //     if (BuiltInRegistries.REGISTRY.keySet().isEmpty()) {
-        //         throw new IllegalStateException("Unable to load registries");
-        //     }
-        //     FireBlock.bootStrap();
-        //     ComposterBlock.bootStrap();
-        //     if (EntityType.getKey(EntityType.PLAYER) == null) {
-        //         throw new IllegalStateException("Failed loading EntityTypes");
-        //     }
-        //     PotionBrewing.bootStrap();
-        //     EntitySelectorOptions.bootStrap();
-        //     DispenseItemBehavior.bootStrap();
-        //     CauldronInteraction.bootStrap();
-        //     ================= Our Code ============================================
-        //     LoaderKt.loaderInit();                                               ||
-        //     =======================================================================
-        //     BuiltInRegistries.bootStrap();
-        //     CreativeModeTabs.validate();
-        //     Bootstrap.wrapStreams();
-        //     bootstrapDuration.set(Duration.between((Temporal)$$0, (Temporal)Instant.now()).toMillis());
-        // }
-        val methodCall = MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/loader/entrypoint/LoaderKt", "loaderInit", "()V")
-        mn.instructions.find { insn -> 
-          if (insn.type != AbstractInsnNode.METHOD_INSN) {
-            false
-          } else {
-            val mIns = insn as MethodInsnNode
-            mIns.owner == "kd" && mIns.name == "a" && mIns.desc == "()V"
-          }
-        }?.let {
-          mn.instructions.insertBefore(it, methodCall)
+    clazz.methods.find { it -> it.name == "bootStrap" && it.desc == "()V" }?.let { mn ->
+      println("[DEBUG] modifying method ${mn.name}${mn.desc}")
+      mn.instructions.find { insn -> 
+        if (insn.type != AbstractInsnNode.METHOD_INSN) {
+          false
+        } else {
+          val mIns = insn as MethodInsnNode
+            mIns.owner == "net/minecraft/core/registries/BuiltInRegistries" && mIns.name == "bootStrap" && mIns.desc == "()V"
         }
+      }?.let {
+        val methodCall = MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/loader/entrypoint/LoaderKt", "loaderInit", "()V")
+        mn.instructions.insertBefore(it, methodCall)
+        println("[DEBUG] injected main call")
       }
     }
   }
@@ -91,7 +91,7 @@ class Transformer(private val jarLoc: String, private val gameJar: JarFile): Cla
   }
 
   // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
-  override protected fun findClass(name: String): Class<*> {
+  override protected fun findClass(name: String): Class<*>? {
     val normalName = name.replace(".", "/") + (".class")
     val entry = this.gameJar.getJarEntry(normalName)
     if (entry == null) return super.findClass(name);

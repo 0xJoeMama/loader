@@ -53,11 +53,17 @@ where
     Ok(dest)
 }
 
+pub struct BootstrapResult {
+    pub mappings: PathBuf,
+    pub version_jar: PathBuf,
+    pub classpath: Vec<PathBuf>,
+}
+
 pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     let mut cmd = Command::new(program);
     cmd.args(args);
 
-    print!("[CMD] {program}");
+    print!("[CMD] {program} ");
     for i in cmd.get_args() {
         print!("{} ", i.to_string_lossy());
     }
@@ -126,7 +132,7 @@ impl VersionManifest {
         let version = self
             .versions
             .iter()
-            .position(|v| &v.id == version.as_ref())
+            .position(|v| v.id == version.as_ref())
             .map(|i| &self.versions[i])
             .expect("unknown version");
 
@@ -144,22 +150,27 @@ pub struct AssetIndex {
 
 impl AssetIndex {
     pub async fn download_assets(&self, object_path: &Path) -> Result<()> {
-        let download_tasks = self
-            .objects
-            .values()
-            .map(|obj| async {
-                task::spawn(download_file(
-                    obj.get_url(),
-                    object_path.join(obj.get_path()),
-                ))
-                .await
-            })
-            .collect::<Vec<_>>();
+        let mut objects = self.objects.values().collect::<Vec<_>>();
 
-        for res in download_tasks {
-            if let Result::Err(e) = res.await? {
-                println!("could not download file {}", object_path.to_string_lossy());
-                return Result::Err(e);
+        // sort by size to group large downloads together
+        objects.sort_unstable_by_key(|obj| obj.size);
+
+        // fetch 50 asset files at once
+        for chunk in objects.chunks(50) {
+            let tasks = chunk
+                .iter()
+                .map(|obj| {
+                    task::spawn(download_file(
+                        obj.get_url(),
+                        object_path.join(obj.get_path()),
+                    ))
+                })
+                .collect::<Vec<_>>();
+            for res in tasks {
+                if let Result::Err(e) = res.await? {
+                    println!("could not download file {}", object_path.to_string_lossy());
+                    return Result::Err(e);
+                }
             }
         }
         Ok(())
@@ -169,6 +180,7 @@ impl AssetIndex {
 #[derive(Deserialize)]
 pub struct AssetObject {
     pub hash: String,
+    pub size: usize,
 }
 
 impl AssetObject {

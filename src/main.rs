@@ -35,7 +35,7 @@ async fn main() {
         .await
         .expect("unknown version");
 
-    let mut cp = bootstrap::bootstrap(&version, &output_path)
+    let bsp_res = bootstrap::bootstrap(&version, &output_path)
         .await
         .expect("couldn't bootstrap");
 
@@ -44,7 +44,7 @@ async fn main() {
         .expect("couldn't fetch assets");
 
     if !skip_decomp {
-        decomp::decomp(&version.id, &output_path)
+        decomp::decomp(&version.id, &output_path, &bsp_res)
             .await
             .expect("couldnt' decompile");
     }
@@ -53,15 +53,21 @@ async fn main() {
         .await
         .expect("couldnt get loader dependencies");
 
+    let mut cp = bsp_res.classpath;
     cp.append(&mut ld);
 
     if make_loader {
-        make_loader::make_loader(&version.id, &output_path, &cp, &asset_dir, &asset_id)
+        make_loader::make_loader(&version.id, &output_path, &cp, &asset_dir, asset_id)
             .await
             .expect("couldn't create loader script");
     }
 
-    let cp = cp.join(":");
+    let cp = cp
+        .iter()
+        .map(|i| i.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(":");
+
     println!("[STEP] Exporting class path...");
     tokio::fs::write(
         format!(

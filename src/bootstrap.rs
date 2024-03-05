@@ -3,9 +3,9 @@ use std::path::Path;
 use anyhow::{Ok, Result};
 use tokio::task;
 
-use crate::{download_file, VersionMeta};
+use crate::{download_file, BootstrapResult, VersionMeta};
 
-pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<Vec<String>> {
+pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<BootstrapResult> {
     println!("[STEP] Bootstraping run environment...");
     let urls: Vec<_> = version
         .libraries
@@ -17,16 +17,16 @@ pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<Vec<Strin
         .map(|(url, path)| task::spawn(download_file(url, path)))
         .collect();
 
-    let mut paths = Vec::with_capacity(urls.len());
+    // TODO: When async closures are allowed, make sure we switch to an iterator
+    let mut classpath = Vec::with_capacity(urls.len());
     for res in urls {
-        paths.push(res.await??.to_string_lossy().to_string());
+        classpath.push(res.await??)
     }
 
     let client_url = &version.downloads["client"].url;
-
     let client_mappings = &version.downloads["client_mappings"].url;
 
-    _ = tokio::join!(
+    let (jar, mappings) = tokio::join!(
         crate::download_file(
             &client_url,
             format!("{}/{}.jar", output.to_string_lossy(), version.id)
@@ -38,5 +38,9 @@ pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<Vec<Strin
     );
 
     println!("[STEP] Finished bootstraping run environment");
-    Ok(paths)
+    Ok(BootstrapResult {
+        mappings: mappings?,
+        version_jar: jar?,
+        classpath,
+    })
 }
