@@ -20,7 +20,9 @@ struct Dep {
     name: String,
 }
 
-pub async fn loader_deps(output: &Path) -> Result<Vec<PathBuf>> {
+pub type LoaderDepsResult = Vec<PathBuf>;
+
+pub async fn loader_deps(output: &Path) -> Result<LoaderDepsResult> {
     println!("[STEP] Fetching loader dependencies...");
     let dep_mf: DepManifest = serde_json::from_str(LOADER_DEPS)?;
 

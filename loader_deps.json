@@ -7,6 +7,10 @@
     {
       "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar",
       "name": "asm-tree.jar"
+    },
+    {
+      "url": "https://github.com/tomlj/tomlj/releases/download/1.1.1/tomlj-1.1.1-all.jar",
+      "name": "tomlj.jar"
     }
   ]
 }

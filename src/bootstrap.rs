@@ -1,9 +1,15 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Ok, Result};
 use tokio::task;
 
-use crate::{download_file, BootstrapResult, VersionMeta};
+use crate::{download_file, VersionMeta};
+
+pub struct BootstrapResult {
+    pub mappings: PathBuf,
+    pub version_jar: PathBuf,
+    pub classpath: Vec<PathBuf>,
+}
 
 pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<BootstrapResult> {
     println!("[STEP] Bootstraping run environment...");

@@ -53,12 +53,6 @@ where
     Ok(dest)
 }
 
-pub struct BootstrapResult {
-    pub mappings: PathBuf,
-    pub version_jar: PathBuf,
-    pub classpath: Vec<PathBuf>,
-}
-
 pub fn run_cmd(program: &str, args: &[&str]) -> Result<()> {
     let mut cmd = Command::new(program);
     cmd.args(args);
@@ -202,3 +196,4 @@ pub mod bootstrap;
 pub mod decomp;
 pub mod loader_deps;
 pub mod make_loader;
+pub mod classpath;

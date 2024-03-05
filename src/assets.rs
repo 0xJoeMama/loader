@@ -1,19 +1,21 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
 use crate::{AssetIndex, VersionMeta};
 
-pub async fn assets<'a>(
-    version: &'a VersionMeta,
-    output_path: &Path,
-) -> Result<(&'a str, PathBuf)> {
+pub struct AssetResult {
+    pub id: String,
+    pub asset_path: PathBuf,
+}
+
+pub async fn assets<'a>(version: &'a VersionMeta, output_path: &Path) -> Result<AssetResult> {
     println!("[STEP] Downloading assets...");
 
     let output_path = output_path.join("assets");
     let idx = &version.asset_index;
 
-    let id = &idx.id;
+    let id = idx.id.clone();
     let url = &idx.url;
 
     let idx_json = reqwest::get(url).await?.bytes().await?;
@@ -28,5 +30,8 @@ pub async fn assets<'a>(
     fs::write(&index, idx_json).await?;
 
     println!("[STEP] Assets downloaded");
-    Ok((id, output_path))
+    Ok(AssetResult {
+        id,
+        asset_path: output_path,
+    })
 }

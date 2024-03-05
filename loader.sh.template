@@ -4,11 +4,11 @@ set -e
 
 # Build
 echo "[INFO] building the loader for version ${version}"
-kotlinc -cp $CP:${lib_dir}/${version}-sources.jar -include-runtime -d build/loader.jar io/github/joemama/loader/entrypoint/Loader.kt io/github/joemama/loader/main.kt 
+kotlinc -cp $CP:${lib_dir}/${version}-sources.jar -include-runtime -d build/loader.jar io
 echo "[INFO] loader was built"
 
 # Run
 echo "[INFO] running the loader"
-java -cp $CP:build/loader.jar io.github.joemama.loader.MainKt ${lib_dir}/${version}.jar --version JoeMamaCraft-${version} --accessToken 69420 --assetsDir ${assets_dir} --assetIndex ${assets_id} --gameDir run $@
+java -cp $CP:build/loader.jar io.github.joemama.loader.MainKt --source ${lib_dir}/${version}-sources.jar --version JoeMamaCraft-${version} --accessToken 69420 --assetsDir ${assets_dir} --assetIndex ${assets_id} --gameDir run $@
 echo "[INFO] loader has exited"
 
