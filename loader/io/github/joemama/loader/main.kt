@@ -56,10 +56,10 @@ object ModLoader {
     this.classLoader = Transformer()
   }
 
-  fun start(owner: String, method: String, params: Any) {
+  fun start(owner: String, method: String, params: Array<String>) {
     println("[INFO] starting game")
     println("[DEBUG] target game jars: ${this.gameJarPath}")
-    println("[DEBUG] game args: ${(params as Array<String>).contentToString()}")
+    println("[DEBUG] game args: ${params.contentToString()}")
     //=========================================================================================
     //============= WARNING: Anything after this needs not use any of the transformable classes
     //====================               Here be dragons!                  ====================
@@ -80,14 +80,10 @@ object ModLoader {
       .map { Class.forName(it.clazz, true, this.classLoader).getDeclaredConstructor().newInstance() as Transform }
 
   inline fun <reified T> callEntrypoint(id: String, crossinline method: (T) -> Unit) {
-      println("[DEBUG] calling entrypoint $id")
      this.discoverer.mods
           .flatMap { it.meta.entrypoints }
           .filter { it.id == id }
-          .map { 
-            println("it.clazz = ${it.clazz}")
-            Class.forName(it.clazz, true, this.classLoader).getDeclaredConstructor().newInstance() as T 
-          }
+          .map { Class.forName(it.clazz, true, this.classLoader).getDeclaredConstructor().newInstance() as T }
           .forEach { method(it) }
   }
 }

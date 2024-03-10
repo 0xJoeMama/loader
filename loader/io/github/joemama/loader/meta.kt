@@ -16,7 +16,9 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
    fun parse(file: File): Mod? = try {
       val modJar = JarFile(file)
       val modMeta = modJar.getJarEntry("mods.toml")
-      val metaToml = Toml.parse(modJar.getInputStream(modMeta)!!)
+      val metaToml = modJar.getInputStream(modMeta)!!.use {
+        Toml.parse(it)
+      }
       val meta = ModMeta.deserialize(metaToml) ?: throw IllegalJarException("Invalid mods.toml file")
       
       Mod(modJar, meta)

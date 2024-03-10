@@ -7,7 +7,6 @@ interface CommonEntrypoint {
 }
 
 fun apiInit() {
-  println("[INFO] calling main entrypoint")
   ModLoader.callEntrypoint<CommonEntrypoint>("common") {
     it.onInit()
   }

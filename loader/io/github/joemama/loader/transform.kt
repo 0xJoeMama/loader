@@ -52,7 +52,6 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
 
   private fun getModClass(name: String): ByteArray? {
     for (m in ModLoader.discoverer.mods) {
-      println("[DEBUG] checking mod file ${m.jar.name} for class $name")
       val bytes = this.getClassFromJar(m.jar, name)
       if (bytes != null) return bytes
     }

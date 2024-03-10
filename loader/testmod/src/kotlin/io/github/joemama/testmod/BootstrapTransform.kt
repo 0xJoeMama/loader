@@ -31,7 +31,7 @@ class BootstrapTransform(): Transform {
   //     DispenseItemBehavior.bootStrap();
   //     CauldronInteraction.bootStrap();
   //     ================= Our Code ============================================
-  //     LoaderKt.loaderInit();                                               ||
+  //     ApiInitKt.apiInit();
   //     =======================================================================
   //     BuiltInRegistries.bootStrap();
   //     CreativeModeTabs.validate();

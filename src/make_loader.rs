@@ -1,4 +1,4 @@
-use std::{os::unix::fs::PermissionsExt, path::Path};
+use std::path::Path;
 
 use anyhow::{Ok, Result};
 use tokio::fs::{self, File};
@@ -26,11 +26,13 @@ pub async fn make_loader(
 
     fs::write("loader.sh", script).await?;
 
-    let f = File::open("loader.sh").await?;
-    let mut perms = f.metadata().await?.permissions();
-    perms.set_mode(perms.mode() | EXECUTE);
-    f.set_permissions(perms).await?;
-
+    if cfg!(unix) {
+        use std::os::unix::fs::PermissionsExt;
+        let f = File::open("loader.sh").await?;
+        let mut perms = f.metadata().await?.permissions();
+        perms.set_mode(perms.mode() | EXECUTE);
+        f.set_permissions(perms).await?;
+    }
     println!("[STEP] Loader script has been written");
     Ok(())
 }
