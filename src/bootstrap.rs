@@ -1,14 +1,16 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Ok, Result};
+use serde::Serialize;
 use tokio::task;
 
 use crate::{download_file, VersionMeta};
 
+#[derive(Serialize)]
 pub struct BootstrapResult {
     pub mappings: PathBuf,
     pub version_jar: PathBuf,
-    pub classpath: Vec<PathBuf>,
+    pub classpath_entries: Vec<PathBuf>,
 }
 
 pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<BootstrapResult> {
@@ -47,6 +49,6 @@ pub async fn bootstrap(version: &VersionMeta, output: &Path) -> Result<Bootstrap
     Ok(BootstrapResult {
         mappings: mappings?,
         version_jar: jar?,
-        classpath,
+        classpath_entries: classpath,
     })
 }

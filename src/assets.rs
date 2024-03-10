@@ -10,7 +10,7 @@ pub struct AssetResult {
 }
 
 pub async fn assets<'a>(version: &'a VersionMeta, output_path: &Path) -> Result<AssetResult> {
-    println!("[STEP] Downloading assets...");
+    println!("[STEP] Assuring assets exist...");
 
     let output_path = output_path.join("assets");
     let idx = &version.asset_index;

@@ -193,7 +193,7 @@ impl AssetObject {
 
 pub mod assets;
 pub mod bootstrap;
+pub mod classpath;
 pub mod decomp;
 pub mod loader_deps;
 pub mod make_loader;
-pub mod classpath;

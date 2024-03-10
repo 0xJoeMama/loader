@@ -2,6 +2,7 @@ use crate::bootstrap::BootstrapResult;
 use crate::download_file;
 use crate::run_cmd;
 use anyhow::{Ok, Result};
+use serde::Serialize;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -11,6 +12,7 @@ const RECONSTRUCTOR_URL: &str =
 const CFR_URL: &str = "https://repo1.maven.org/maven2/org/benf/cfr/0.152/cfr-0.152.jar";
 
 #[allow(dead_code)]
+#[derive(Serialize)]
 pub struct DecompResult {
     mapped_jar: PathBuf,
     sources: Option<PathBuf>,

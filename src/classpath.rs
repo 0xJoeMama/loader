@@ -11,7 +11,7 @@ pub async fn classpath<'b, 'a>(
     println!("[STEP] Exporting class path...");
 
     let cp: Vec<&Path> = bsp
-        .classpath
+        .classpath_entries
         .iter()
         .chain(ld.iter())
         .map(|it| it.as_path())
