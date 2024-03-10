@@ -6,6 +6,7 @@ use loader_make::{
     bootstrap::{self, BootstrapResult},
     classpath, decomp, loader_deps, make_loader, VersionManifest,
 };
+use tokio::fs;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,6 +30,14 @@ async fn main() {
         make_loader,
     } = Args::parse();
     let output_path = output_path.unwrap_or_else(|| "libs".into());
+    fs::create_dir_all(&output_path)
+        .await
+        .expect("couldn't create output directory");
+
+    let output_path = fs::canonicalize(output_path)
+        .await
+        .expect("couldn't get absolute path");
+
     println!("[STEP] Getting version manifest");
     let mf = VersionManifest::fetch()
         .await
@@ -60,7 +69,7 @@ async fn main() {
         .expect("couldn't write classpath");
 
     if make_loader {
-        _ = make_loader::make_loader(&version.id, &output_path, &asset_res, &cp)
+        make_loader::make_loader(&version.id, &output_path, &asset_res, &cp)
             .await
             .expect("couldn't create loader script");
     }

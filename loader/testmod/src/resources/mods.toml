@@ -1,0 +1,13 @@
+name="Testmod"
+version = "1.0.0"
+description = "My mod"
+modid = "mymod"
+
+[[transforms]]
+name = "Boostrap transform"
+class = "io.github.joemama.testmod.BootstrapTransform"
+target = "net.minecraft.server.Bootstrap"
+
+[[entrypoints]]
+id = "common"
+class = "io.github.joemama.testmod.Test"

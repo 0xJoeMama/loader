@@ -1,14 +1,8 @@
-package io.github.joemama.loader
+package io.github.joemama.loader.transformer
 
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
-import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
-import org.objectweb.asm.tree.InsnList
-import org.objectweb.asm.tree.MethodInsnNode
-import org.objectweb.asm.tree.FieldInsnNode
-import org.objectweb.asm.tree.LdcInsnNode
-import org.objectweb.asm.tree.AbstractInsnNode
 import java.net.URL
 import java.net.URI
 import java.nio.file.Paths
@@ -23,66 +17,14 @@ import java.nio.file.StandardOpenOption
 import java.io.OutputStream
 import java.util.jar.JarFile
 
+import io.github.joemama.loader.ModLoader
+
 interface Transform {
-   val classTarget: String
-   val name: String
    fun transform(clazz: ClassNode)
 }
 
-object BuiltInRegistriesTransform: Transform {
-  override val classTarget = "net.minecraft.server.Bootstrap"
-  override val name = "bootstrap transform for entrypoints"
-
-  // ======================== Code from Bootstrap=======================
-  // public static void bootStrap() {
-  //     if (isBootstrapped) {
-  //         return;
-  //     }
-  //     isBootstrapped = true;
-  //     Instant $$0 = Instant.now();
-  //     if (BuiltInRegistries.REGISTRY.keySet().isEmpty()) {
-  //         throw new IllegalStateException("Unable to load registries");
-  //     }
-  //     FireBlock.bootStrap();
-  //     ComposterBlock.bootStrap();
-  //     if (EntityType.getKey(EntityType.PLAYER) == null) {
-  //         throw new IllegalStateException("Failed loading EntityTypes");
-  //     }
-  //     PotionBrewing.bootStrap();
-  //     EntitySelectorOptions.bootStrap();
-  //     DispenseItemBehavior.bootStrap();
-  //     CauldronInteraction.bootStrap();
-  //     ================= Our Code ============================================
-  //     LoaderKt.loaderInit();                                               ||
-  //     =======================================================================
-  //     BuiltInRegistries.bootStrap();
-  //     CreativeModeTabs.validate();
-  //     Bootstrap.wrapStreams();
-  //     bootstrapDuration.set(Duration.between((Temporal)$$0, (Temporal)Instant.now()).toMillis());
-  // }
-  override fun transform(clazz: ClassNode) {
-    clazz.methods.find { it -> it.name == "bootStrap" && it.desc == "()V" }?.let { mn ->
-      println("[DEBUG] modifying method ${mn.name}${mn.desc}")
-      mn.instructions.find { insn -> 
-        if (insn.type != AbstractInsnNode.METHOD_INSN) {
-          false
-        } else {
-          val mIns = insn as MethodInsnNode
-            mIns.owner == "net/minecraft/core/registries/BuiltInRegistries" && mIns.name == "bootStrap" && mIns.desc == "()V"
-        }
-      }?.let {
-        val methodCall = MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/loader/entrypoint/LoaderKt", "loaderInit", "()V")
-        mn.instructions.insertBefore(it, methodCall)
-        println("[DEBUG] injected main call")
-      }
-    }
-  }
-}
-
-class Transformer(private val jarLoc: String, private val gameJar: JarFile): ClassLoader(ClassLoader.getSystemClassLoader()) {
-  private val transforms = listOf(
-    BuiltInRegistriesTransform
-  )
+class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
+  private val jarLoc: String = ModLoader.gameJarPath
   private val jarUrl: URL
 
   init {
@@ -90,12 +32,10 @@ class Transformer(private val jarLoc: String, private val gameJar: JarFile): Cla
     this.jarUrl = URI("jar:" + p.toString() + "!/").toURL()
   }
 
-  // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
-  override protected fun findClass(name: String): Class<*>? {
-    val normalName = name.replace(".", "/") + (".class")
-    val entry = this.gameJar.getJarEntry(normalName)
-    if (entry == null) return super.findClass(name);
-    var classBytes: ByteArray? = this.gameJar.getInputStream(entry).use {
+  private fun getClassFromJar(jf: JarFile, name: String): ByteArray? {
+    val entry = jf.getJarEntry(name)
+    if (entry == null) return null
+    return jf.getInputStream(entry)!!.use {
       ByteArrayOutputStream(it.available()).use { res ->
         var b: Int = it.read()
           while (b != -1) {
@@ -106,25 +46,48 @@ class Transformer(private val jarLoc: String, private val gameJar: JarFile): Cla
         res.toByteArray()
       }
     }
+  }
 
-    if (classBytes != null) {
-      for (t in this.transforms) {
-        if (t.classTarget == name) {
-          println("[TRANSFORMER] Transforming class $name using ${t.name}")
-            val classReader = ClassReader(classBytes)
-            val classNode = ClassNode()
-            classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
-            t.transform(classNode)
-            val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
-            classNode.accept(classWriter)
-            // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
-            classBytes = classWriter.toByteArray()
-        }
-      }
-      return this.defineClass(name, classBytes, 0, classBytes!!.size)
+  private fun getGameClass(name: String): ByteArray? = this.getClassFromJar(ModLoader.gameJar, name)
+
+  private fun getModClass(name: String): ByteArray? {
+    for (m in ModLoader.discoverer.mods) {
+      println("[DEBUG] checking mod file ${m.jar.name} for class $name")
+      val bytes = this.getClassFromJar(m.jar, name)
+      if (bytes != null) return bytes
     }
 
-    return super.findClass(name)
+    return null
+  }
+
+  // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
+  override protected fun findClass(name: String): Class<*>? {
+    synchronized (this.getClassLoadingLock(name)) {
+      val normalName = name.replace(".", "/") + ".class"
+      // TODO: check all mc package names
+      var classBytes = if (normalName.startsWith("net/minecraft/") || normalName.startsWith("com/mojang/")) {
+        this.getGameClass(normalName)
+      } else {
+        this.getModClass(normalName)
+      }
+
+      if (classBytes != null) {
+        for (t in ModLoader.getTransforms(name)) {
+          println("[TRANSFORMER] Transforming class $name")
+          val classReader = ClassReader(classBytes)
+          val classNode = ClassNode()
+          classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
+          t.transform(classNode)
+          val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
+          classNode.accept(classWriter)
+          // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
+          classBytes = classWriter.toByteArray()
+        }
+        return this.defineClass(name, classBytes, 0, classBytes!!.size)
+      }
+
+      return super.findClass(name)
+    }
   }
 
   override protected fun findResource(name: String): URL? {
@@ -145,6 +108,12 @@ class Transformer(private val jarLoc: String, private val gameJar: JarFile): Cla
     } else {
       // we can guarantee there's only gonna be one file because of obfuscation
       Collections.enumeration(listOf(res))
+    }
+  }
+
+  companion object {
+    init {
+      registerAsParallelCapable()
     }
   }
 }

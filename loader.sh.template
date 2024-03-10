@@ -9,6 +9,6 @@ echo "[INFO] loader was built"
 
 # Run
 echo "[INFO] running the loader"
-java -cp $CP:build/loader.jar io.github.joemama.loader.MainKt --source ${lib_dir}/${version}-sources.jar --version JoeMamaCraft-${version} --accessToken 69420 --assetsDir ${assets_dir} --assetIndex ${assets_id} --gameDir run $@
+java -cp $CP:build/loader.jar io.github.joemama.loader.MainKt --mods mods --source ${lib_dir}/${version}-sources.jar --version JoeMamaCraft-${version} --accessToken 69420 --assetsDir ${assets_dir} --assetIndex ${assets_id} --gameDir run $@
 echo "[INFO] loader has exited"
 

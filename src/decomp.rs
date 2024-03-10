@@ -50,6 +50,7 @@ pub async fn decomp(
                 &bsp_res.mappings.to_string_lossy(),
                 "--output",
                 &source_jar,
+                "--agree",
             ],
         )
         .expect("failed to run deobfuscation");
