@@ -11,6 +11,22 @@
     {
       "url": "https://github.com/tomlj/tomlj/releases/download/1.1.1/tomlj-1.1.1-all.jar",
       "name": "tomlj.jar"
+    },
+    {
+      "url": "https://repo.spongepowered.org/repository/maven-releases/org/spongepowered/mixin/0.8.5/mixin-0.8.5.jar",
+      "name": "mixin.jar"
+    },
+    {
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-analysis/9.6/asm-analysis-9.6.jar",
+      "name": "asm-analysis.jar"
+    },
+    {
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-util/9.6/asm-util-9.6.jar",
+      "name": "asm-util.jar"
+    },
+    {
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-commons/9.6/asm-commons-9.6.jar",
+      "name": "asm-commons.jar"
     }
   ]
 }

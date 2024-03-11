@@ -18,6 +18,7 @@ import java.io.OutputStream
 import java.util.jar.JarFile
 
 import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.mixin.Mixin
 
 interface Transform {
    fun transform(clazz: ClassNode)
@@ -60,7 +61,7 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   }
 
   // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
-  override protected fun findClass(name: String): Class<*>? {
+  override public fun findClass(name: String): Class<*>? {
     synchronized (this.getClassLoadingLock(name)) {
       val normalName = name.replace(".", "/") + ".class"
       // TODO: check all mc package names
@@ -71,6 +72,9 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
       }
 
       if (classBytes != null) {
+        // TODO: create/apply mixin transformer
+        classBytes = Mixin.transformer.transformClassBytes(name, name, classBytes)
+
         for (t in ModLoader.getTransforms(name)) {
           println("[TRANSFORMER] Transforming class $name")
           val classReader = ClassReader(classBytes)
@@ -82,6 +86,7 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
           // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
           classBytes = classWriter.toByteArray()
         }
+
         return this.defineClass(name, classBytes, 0, classBytes!!.size)
       }
 
@@ -109,6 +114,8 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
       Collections.enumeration(listOf(res))
     }
   }
+
+  fun isClassLoaded(name: String): Boolean = synchronized(this.getClassLoadingLock(name)) { this.findLoadedClass(name) != null }
 
   companion object {
     init {

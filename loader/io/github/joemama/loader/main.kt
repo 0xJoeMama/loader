@@ -5,6 +5,7 @@ import java.util.jar.JarFile
 import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transformer
 import io.github.joemama.loader.transformer.Transform
+import io.github.joemama.loader.mixin.Mixin
 
 object ModLoader {
   lateinit var modDir: String
@@ -54,6 +55,8 @@ object ModLoader {
     this.discoverer = ModDiscoverer(this.modDir)
     this.gameJar = JarFile(this.gameJarPath)
     this.classLoader = Transformer()
+
+    Mixin.initMixins()
   }
 
   fun start(owner: String, method: String, params: Array<String>) {
@@ -86,6 +89,7 @@ object ModLoader {
           .map { Class.forName(it.clazz, true, this.classLoader).getDeclaredConstructor().newInstance() as T }
           .forEach { method(it) }
   }
+
 }
 
 fun main(args: Array<String>) {

@@ -7,7 +7,6 @@ import net.minecraft.core.registries.BuiltInRegistries
 
 import io.github.joemama.testmod.CommonEntrypoint
 
-
 class Test: CommonEntrypoint {
   val A = Item(Item.Properties())
   override fun onInit() {
