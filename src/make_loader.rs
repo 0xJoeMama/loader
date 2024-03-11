@@ -1,13 +1,11 @@
 use std::path::Path;
 
 use anyhow::{Ok, Result};
-use tokio::fs::{self, File};
+use tokio::fs;
 
 use crate::assets::AssetResult;
 
 const LOADER_SCRIPT_TEMPLATE: &str = include_str!("../loader.sh.template");
-
-const EXECUTE: u32 = 100 | 10 | 1;
 
 pub async fn make_loader(
     version: &str,
@@ -28,7 +26,11 @@ pub async fn make_loader(
 
     #[cfg(unix)]
     {
+        use fs::File;
         use std::os::unix::fs::PermissionsExt;
+
+        const EXECUTE: u32 = 100 | 10 | 1;
+
         let f = File::open("loader.sh").await?;
         let mut perms = f.metadata().await?.permissions();
         perms.set_mode(perms.mode() | EXECUTE);
