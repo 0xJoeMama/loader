@@ -14,7 +14,7 @@ object ModLoader {
   lateinit var gameJar: JarFile
   lateinit var classLoader: Transformer 
 
-  fun parseArgs(args: Array<String>): Array<String> {
+  internal fun parseArgs(args: Array<String>): Array<String> {
     var gameJarPath: String? = null
     var modDir: String? = null
     val newArgs= mutableListOf<String>()
@@ -49,7 +49,7 @@ object ModLoader {
     return newArgs.toTypedArray()
   }
 
-  fun initLoader() {
+  internal fun initLoader() {
     println("[INFO] starting mod loader")
     this.discoverer = ModDiscoverer(this.modDir)
     this.gameJar = JarFile(this.gameJarPath)
