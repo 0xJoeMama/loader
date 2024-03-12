@@ -1,8 +1,12 @@
 package io.github.joemama.loader.transformer
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
+
 import java.net.URL
 import java.net.URI
 import java.nio.file.Paths
@@ -19,12 +23,14 @@ import java.util.jar.JarFile
 
 import io.github.joemama.loader.ModLoader
 import io.github.joemama.loader.mixin.Mixin
+import io.github.joemama.loader.mixin.MixinTransform
 
 interface Transform {
    fun transform(clazz: ClassNode)
 }
 
 class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
+  val logger = LoggerFactory.getLogger(Transformer::class.java)
   private val jarLoc: String = ModLoader.gameJarPath
   private val jarUrl: URL
 
@@ -71,21 +77,23 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
         this.getModClass(normalName)
       }
 
+      // TODO; optimize the parsing of every loaded class
       if (classBytes != null) {
-        // TODO: create/apply mixin transformer
-        classBytes = Mixin.transformer.transformClassBytes(name, name, classBytes)
+        val classReader = ClassReader(classBytes)
+        val classNode = ClassNode()
+        classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
+
+        MixinTransform.transform(classNode)
 
         for (t in ModLoader.getTransforms(name)) {
-          println("[TRANSFORMER] Transforming class $name")
-          val classReader = ClassReader(classBytes)
-          val classNode = ClassNode()
-          classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
+          this.logger.info("Transforming class $name")
           t.transform(classNode)
-          val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
-          classNode.accept(classWriter)
-          // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
-          classBytes = classWriter.toByteArray()
         }
+
+        val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
+        classNode.accept(classWriter)
+        // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
+        classBytes = classWriter.toByteArray()
 
         return this.defineClass(name, classBytes, 0, classBytes!!.size)
       }

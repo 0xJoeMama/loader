@@ -1,13 +1,20 @@
 package io.github.joemama.loader.meta
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import org.tomlj.TomlTable
 import org.tomlj.Toml
 import org.tomlj.TomlArray
+
 import java.io.File
 import java.util.jar.JarFile
 import java.io.InputStream
 import java.io.FileFilter
 import java.nio.file.Paths
+
+internal val logger = LoggerFactory.getLogger(ModDiscoverer::class.java)
+
 
 class IllegalJarException(msg: String): Exception(msg)
 
@@ -23,7 +30,7 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
       
       Mod(modJar, meta)
     } catch (e: Exception) {
-      println("[ERROR] file ${file.name} could not be parsed as a mod file: ${e.message}")
+      logger.error("file ${file.name} could not be parsed as a mod file: ${e.message}")
       e.printStackTrace()
       null
     }
@@ -34,12 +41,11 @@ class ModDiscoverer(val modDirPath: String) {
   val modDir = Paths.get(this.modDirPath).toFile()
   val mods: List<Mod>
   init {
-    println("[INFO] mod discovery running in folder ${modDirPath}")
+    logger.info("mod discovery running in folder ${modDirPath}")
     modDir.mkdirs()
     this.mods = modDir.listFiles( FileFilter { !it.isDirectory() }).map { Mod.parse(it) }.filterNotNull()
-    println("[INFO] discovered ${mods.size} mod files")
+    logger.info("discovered ${mods.size} mod files")
   }
-
 }
 
 data class Entrypoint(val id: String, val clazz: String) {

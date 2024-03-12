@@ -6,6 +6,7 @@ import java.io.InputStream
 import java.net.URL
 
 import org.spongepowered.asm.launch.MixinBootstrap
+import org.spongepowered.asm.mixin.MixinEnvironment
 import org.spongepowered.asm.service.IMixinServiceBootstrap
 import org.spongepowered.asm.service.IGlobalPropertyService
 import org.spongepowered.asm.service.MixinServiceAbstract
@@ -23,10 +24,11 @@ import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory
 import org.spongepowered.asm.mixin.transformer.IMixinTransformer
 
 import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.transformer.Transform
 
 class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
   companion object {
-    lateinit var transformer: IMixinTransformer
+    internal lateinit var transformer: IMixinTransformer
     fun initMixins() {
       MixinBootstrap.init()
     }
@@ -61,6 +63,13 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
     if (internal is IMixinTransformerFactory) {
       Mixin.transformer = internal.createTransformer()
     }
+  }
+}
+
+object MixinTransform: Transform {
+  override fun transform(clazz: ClassNode) {
+    // apply mixin transformations
+    Mixin.transformer.transformClass(MixinEnvironment.getCurrentEnvironment(), clazz.name, clazz)
   }
 }
 

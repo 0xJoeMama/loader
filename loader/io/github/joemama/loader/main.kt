@@ -1,13 +1,20 @@
 package io.github.joemama.loader
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import org.tomlj.Toml
+
 import java.util.jar.JarFile
+
 import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transformer
 import io.github.joemama.loader.transformer.Transform
 import io.github.joemama.loader.mixin.Mixin
+import io.github.joemama.loader.mixin.MixinTransform
 
 object ModLoader {
+  val logger = LoggerFactory.getLogger(ModLoader::class.java)
   lateinit var modDir: String
   lateinit var gameJarPath: String
   lateinit var discoverer: ModDiscoverer
@@ -51,7 +58,7 @@ object ModLoader {
   }
 
   internal fun initLoader() {
-    println("[INFO] starting mod loader")
+    this.logger.info("starting mod loader")
     this.discoverer = ModDiscoverer(this.modDir)
     this.gameJar = JarFile(this.gameJarPath)
     this.classLoader = Transformer()
@@ -60,23 +67,19 @@ object ModLoader {
   }
 
   fun start(owner: String, method: String, params: Array<String>) {
-    println("[INFO] starting game")
-    println("[DEBUG] target game jars: ${this.gameJarPath}")
-    println("[DEBUG] game args: ${params.contentToString()}")
+    this.logger.info("starting game")
+    this.logger.debug("target game jars: ${this.gameJarPath}")
+    this.logger.debug("game args: ${params.contentToString()}")
     //=========================================================================================
     //============= WARNING: Anything after this needs not use any of the transformable classes
     //====================               Here be dragons!                  ====================
     //=========================================================================================
     val mainClass = this.classLoader.loadClass(owner)
-    val t = Thread {
-      val mainMethod = mainClass.getMethod(method, Array<String>::class.java)
-      mainMethod.invoke(null, params)
-    }
-    t.setContextClassLoader(this.classLoader)
-    t.start()
-    t.join()
+    val mainMethod = mainClass.getMethod(method, Array<String>::class.java)
+    mainMethod.invoke(null, params)
   }
 
+  // TODO: Use a map for this
   fun getTransforms(clazz: String): List<Transform> = this.discoverer.mods
       .flatMap { it.meta.transforms }
       .filter { it.target == clazz }

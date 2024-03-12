@@ -1,5 +1,8 @@
 package io.github.joemama.testmod
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.InsnList
@@ -11,6 +14,7 @@ import org.objectweb.asm.tree.AbstractInsnNode
 import io.github.joemama.loader.transformer.Transform
 
 class BootstrapTransform(): Transform {
+  private val logger = LoggerFactory.getLogger(BootstrapTransform::class.java)
   // ======================== Code from Bootstrap=======================
   // public static void bootStrap() {
   //     if (isBootstrapped) {
@@ -40,7 +44,7 @@ class BootstrapTransform(): Transform {
   // }
   override fun transform(clazz: ClassNode) {
     clazz.methods.find { it -> it.name == "bootStrap" && it.desc == "()V" }?.let { mn ->
-      println("[DEBUG] modifying method ${mn.name}${mn.desc}")
+      this.logger.info("modifying method ${mn.name}${mn.desc}")
       mn.instructions.find { insn -> 
         if (insn.type != AbstractInsnNode.METHOD_INSN) {
           false
@@ -51,7 +55,7 @@ class BootstrapTransform(): Transform {
       }?.let {
         val methodCall = MethodInsnNode(Opcodes.INVOKESTATIC, "io/github/joemama/testmod/ApiInitKt", "apiInit", "()V")
         mn.instructions.insertBefore(it, methodCall)
-        println("[DEBUG] injected main call")
+        this.logger.debug("injected main call")
       }
     }
   }
