@@ -1,0 +1,7 @@
+{
+  "mappings": {
+    "io/github/joemama/testmod/mixins/ExampleMixin": {
+      "main": "Lnet/minecraft/client/main/Main;main([Ljava/lang/String;)V"
+    }
+  }
+}

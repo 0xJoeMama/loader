@@ -7,6 +7,8 @@ import java.net.URL
 
 import org.spongepowered.asm.launch.MixinBootstrap
 import org.spongepowered.asm.mixin.MixinEnvironment
+import org.spongepowered.asm.mixin.MixinEnvironment.Phase
+import org.spongepowered.asm.util.IConsumer
 import org.spongepowered.asm.service.IMixinServiceBootstrap
 import org.spongepowered.asm.service.IGlobalPropertyService
 import org.spongepowered.asm.service.MixinServiceAbstract
@@ -22,15 +24,28 @@ import org.spongepowered.asm.service.IPropertyKey
 import org.spongepowered.asm.service.IMixinInternal
 import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory
 import org.spongepowered.asm.mixin.transformer.IMixinTransformer
+import org.spongepowered.asm.mixin.Mixins
 
 import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transform
 
 class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
   companion object {
+    // beware of local global property
+    internal lateinit var phaseConsumer: IConsumer<Phase>
     internal lateinit var transformer: IMixinTransformer
     fun initMixins() {
+      // initialize mixins
       MixinBootstrap.init()
+      // pass in configs
+      for (cfg in ModLoader.discoverer.mods.flatMap { it.meta.mixins }.map { it.path }) {
+        Mixins.addConfiguration(cfg)
+      }
+
+      phaseConsumer.accept(Phase.INIT)
+      phaseConsumer.accept(Phase.DEFAULT)
+      ModLoader.logger.info("initialized mixins")
     }
   }
 
@@ -44,14 +59,19 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
   override fun getAuditTrail(): IMixinAuditTrail? = null
   override fun getPlatformAgents(): Collection<String> = listOf("org.spongepowered.asm.launch.platform.MixinPlatformAgentDefault")
   override fun getPrimaryContainer(): IContainerHandle = ContainerHandleURI(ModLoader::class.java.protectionDomain.codeSource.location.toURI())
-  override fun getResourceAsStream(name: String): InputStream = throw IllegalStateException()
+  override fun getResourceAsStream(name: String): InputStream = ModLoader.classLoader.getResourceAsStream(name)
 
   override fun getClassPath(): Array<out URL> = arrayOf()
   override fun findClass(name: String): Class<*>? = ModLoader.classLoader.findClass(name)
   override fun findClass(name: String, resolve: Boolean): Class<*>? = Class.forName(name, resolve, ModLoader.classLoader)
   override fun findAgentClass(name: String, resolve: Boolean): Class<*> = Class.forName(name, resolve, ModLoader::class.java.classLoader)
-  override fun getClassNode(name: String): ClassNode = throw IllegalStateException("to forward from modloader")
-  override fun getClassNode(name: String, resolve: Boolean): ClassNode = throw IllegalStateException("to forward from modloader")
+  override fun getClassNode(name: String): ClassNode? = this.getClassNode(name, true)
+  // runTransformers means nothing in our case since we always run transformers before Mixin application
+  override fun getClassNode(name: String, runTransformers: Boolean): ClassNode? {
+    val res = ModLoader.classLoader.getClassNode(name) 
+    ModLoader.logger.info("{}: {} node at {}", name, runTransformers, res)
+    return res
+  }
   override fun getTransformers(): Collection<ITransformer> = listOf()
   override fun getDelegatedTransformers(): Collection<ITransformer> = listOf()
   override fun addTransformerExclusion(name: String) = Unit
@@ -63,6 +83,12 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
     if (internal is IMixinTransformerFactory) {
       Mixin.transformer = internal.createTransformer()
     }
+  }
+
+  override fun wire(phase: Phase, consumer: IConsumer<Phase>) {
+    super.wire(phase, consumer)
+    ModLoader.logger.info("{}", phase)
+    phaseConsumer = consumer
   }
 }
 
@@ -76,7 +102,6 @@ object MixinTransform: Transform {
 class MixinBootstrap: IMixinServiceBootstrap {
   override fun getName(): String = "ModLoaderBootstrap"
   override fun getServiceClassName(): String = "io.github.joemama.loader.mixin.Mixin"
-  
   override fun bootstrap() = Unit
 }
 

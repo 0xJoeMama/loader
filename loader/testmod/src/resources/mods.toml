@@ -11,3 +11,6 @@ target = "net.minecraft.server.Bootstrap"
 [[entrypoints]]
 id = "common"
 class = "io.github.joemama.testmod.Test"
+
+[[mixins]]
+path = "mymod.mixins.json"

@@ -39,10 +39,10 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
     this.jarUrl = URI("jar:" + p.toString() + "!/").toURL()
   }
 
-  private fun getClassFromJar(jf: JarFile, name: String): ByteArray? {
+  private fun getClassFromJar(jf: JarFile, name: String): ClassNode? {
     val entry = jf.getJarEntry(name)
     if (entry == null) return null
-    return jf.getInputStream(entry)!!.use {
+    val classBytes = jf.getInputStream(entry)!!.use {
       ByteArrayOutputStream(it.available()).use { res ->
         var b: Int = it.read()
           while (b != -1) {
@@ -53,47 +53,51 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
         res.toByteArray()
       }
     }
+
+    val classReader = ClassReader(classBytes)
+    val classNode = ClassNode()
+    classReader.accept(classNode, 0)
+    return classNode
   }
 
-  private fun getGameClass(name: String): ByteArray? = this.getClassFromJar(ModLoader.gameJar, name)
+  private fun getGameClass(name: String): ClassNode? = this.getClassFromJar(ModLoader.gameJar, name)
 
-  private fun getModClass(name: String): ByteArray? {
+  private fun getModClass(name: String): ClassNode? {
     for (m in ModLoader.discoverer.mods) {
-      val bytes = this.getClassFromJar(m.jar, name)
-      if (bytes != null) return bytes
+      val node = this.getClassFromJar(m.jar, name)
+      if (node != null) return node
     }
 
     return null
   }
 
-  // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
-  override public fun findClass(name: String): Class<*>? {
-    synchronized (this.getClassLoadingLock(name)) {
+  fun getClassNode(name: String): ClassNode? {
       val normalName = name.replace(".", "/") + ".class"
-      // TODO: check all mc package names
-      var classBytes = if (normalName.startsWith("net/minecraft/") || normalName.startsWith("com/mojang/")) {
+      return if (normalName.startsWith("net/minecraft/") || normalName.startsWith("com/mojang/")) {
         this.getGameClass(normalName)
       } else {
         this.getModClass(normalName)
       }
+  }
+
+  // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
+  override public fun findClass(name: String): Class<*>? {
+    synchronized (this.getClassLoadingLock(name)) {
+      var classNode = this.getClassNode(name)
 
       // TODO; optimize the parsing of every loaded class
-      if (classBytes != null) {
-        val classReader = ClassReader(classBytes)
-        val classNode = ClassNode()
-        classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
-
-        MixinTransform.transform(classNode)
-
+      if (classNode != null) {
         for (t in ModLoader.getTransforms(name)) {
           this.logger.info("Transforming class $name")
           t.transform(classNode)
         }
 
+        MixinTransform.transform(classNode)
+
         val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
         classNode.accept(classWriter)
         // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
-        classBytes = classWriter.toByteArray()
+        val classBytes = classWriter.toByteArray()
 
         return this.defineClass(name, classBytes, 0, classBytes!!.size)
       }
@@ -102,15 +106,29 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
     }
   }
 
-  override protected fun findResource(name: String): URL? {
-    val targetUrl = URI(this.jarUrl.toString() + name).toURL()
-    val jarCon = targetUrl.openConnection() as JarURLConnection
+  private fun tryResourceUrl(url: URL): URL? {
     try {
+      val jarCon = url.openConnection() as JarURLConnection
       jarCon.getJarEntry()
-      return targetUrl
-    } catch (e: IOException) {
+      return url
+    } catch (e: Exception) {
       return null
     }
+  }
+
+  override protected fun findResource(name: String): URL? {
+    var targetUrl = URI(this.jarUrl.toString() + name).toURL()
+    targetUrl = this.tryResourceUrl(targetUrl)
+
+    if (targetUrl != null) return targetUrl
+    
+    for (mod in ModLoader.discoverer.mods) {
+      targetUrl = URI(mod.url.toString() + name).toURL()
+
+      if (targetUrl != null) return targetUrl
+    }
+
+    return null
   }
 
   override protected fun findResources(name: String): Enumeration<URL> {
