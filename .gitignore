@@ -5,3 +5,4 @@
 *.jar
 */build
 loader.sh
+*.class
