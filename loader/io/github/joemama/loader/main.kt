@@ -10,6 +10,8 @@ import java.net.URL
 import java.net.URI
 import java.nio.file.Paths
 import java.nio.file.Path
+import java.lang.invoke.MethodType
+import java.lang.invoke.MethodHandles
 
 import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transformer
@@ -83,13 +85,11 @@ object ModLoader {
     this.logger.info("starting game")
     this.logger.debug("target game jars: ${this.gameJarPath}")
     this.logger.debug("game args: ${params.contentToString()}")
-    //=========================================================================================
-    //============= WARNING: Anything after this needs not use any of the transformable classes
-    //====================               Here be dragons!                  ====================
-    //=========================================================================================
+
     val mainClass = this.classLoader.loadClass(owner)
-    val mainMethod = mainClass.getMethod(method, Array<String>::class.java)
-    mainMethod.invoke(null, params)
+    val mainMethod = MethodHandles.lookup().findStatic(mainClass, "main", MethodType.fromMethodDescriptorString("([Ljava/lang/String;)V", null))
+
+    mainMethod.invokeExact(params)
   }
 
   // TODO: Use a map for this
