@@ -1,4 +1,4 @@
-name: Rust
+name: Build modloader
 
 on:
   push:
@@ -23,6 +23,8 @@ jobs:
         path: target/release/loader_make.exe
   build-linux:
     runs-on: ubuntu-latest
+    outputs:
+      loader_make: target/release/loader_make
     steps:
     - uses: actions/checkout@v3
     - name: Build
