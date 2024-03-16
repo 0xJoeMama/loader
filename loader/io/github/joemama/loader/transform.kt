@@ -26,58 +26,21 @@ import io.github.joemama.loader.mixin.Mixin
 import io.github.joemama.loader.mixin.MixinTransform
 
 interface Transform {
-   fun transform(clazz: ClassNode)
+   fun transform(clazz: ClassNode, name: String)
 }
 
 class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   val logger = LoggerFactory.getLogger(Transformer::class.java)
-  private val jarLoc: String = ModLoader.gameJarPath
-  private val jarUrl: URL
-
-  init {
-    val p = Paths.get(jarLoc).toUri()
-    this.jarUrl = URI("jar:" + p.toString() + "!/").toURL()
-  }
-
-  private fun getClassFromJar(jf: JarFile, name: String): ClassNode? {
-    val entry = jf.getJarEntry(name)
-    if (entry == null) return null
-    val classBytes = jf.getInputStream(entry)!!.use {
-      ByteArrayOutputStream(it.available()).use { res ->
-        var b: Int = it.read()
-          while (b != -1) {
-            res.write(b)
-              b = it.read()
-          }
-
-        res.toByteArray()
-      }
-    }
-
-    val classReader = ClassReader(classBytes)
-    val classNode = ClassNode()
-    classReader.accept(classNode, 0)
-    return classNode
-  }
-
-  private fun getGameClass(name: String): ClassNode? = this.getClassFromJar(ModLoader.gameJar, name)
-
-  private fun getModClass(name: String): ClassNode? {
-    for (m in ModLoader.discoverer.mods) {
-      val node = this.getClassFromJar(m.jar, name)
-      if (node != null) return node
-    }
-
-    return null
-  }
 
   fun getClassNode(name: String): ClassNode? {
-      val normalName = name.replace(".", "/") + ".class"
-      return if (normalName.startsWith("net/minecraft/") || normalName.startsWith("com/mojang/")) {
-        this.getGameClass(normalName)
-      } else {
-        this.getModClass(normalName)
-      }
+    val normalName = name.replace(".", "/") + ".class"
+    // getResourceAsStream since mixins require system resources as well
+    return this.getResourceAsStream(normalName)?.use {
+      val classReader = ClassReader(it)
+      val classNode = ClassNode()
+      classReader.accept(classNode, 0)
+      classNode
+    }
   }
 
   // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
@@ -89,10 +52,10 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
       if (classNode != null) {
         for (t in ModLoader.getTransforms(name)) {
           this.logger.info("Transforming class $name")
-          t.transform(classNode)
+          t.transform(classNode, name)
         }
 
-        MixinTransform.transform(classNode)
+        MixinTransform.transform(classNode, name)
 
         val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
         classNode.accept(classWriter)
@@ -117,13 +80,14 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   }
 
   override protected fun findResource(name: String): URL? {
-    var targetUrl = URI(this.jarUrl.toString() + name).toURL()
-    targetUrl = this.tryResourceUrl(targetUrl)
+    var gameUrl = ModLoader.gameJar.getContentUrl(name)!!
+
+    var targetUrl = this.tryResourceUrl(gameUrl)
 
     if (targetUrl != null) return targetUrl
     
     for (mod in ModLoader.discoverer.mods) {
-      targetUrl = URI(mod.url.toString() + name).toURL()
+      targetUrl = mod.getContentUrl(name)
 
       if (targetUrl != null) return targetUrl
     }

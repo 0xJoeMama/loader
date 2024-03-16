@@ -40,6 +40,7 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
       MixinBootstrap.init()
       // pass in configs
       for (cfg in ModLoader.discoverer.mods.flatMap { it.meta.mixins }.map { it.path }) {
+        ModLoader.logger.info(cfg.toString())
         Mixins.addConfiguration(cfg)
       }
 
@@ -67,11 +68,7 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
   override fun findAgentClass(name: String, resolve: Boolean): Class<*> = Class.forName(name, resolve, ModLoader::class.java.classLoader)
   override fun getClassNode(name: String): ClassNode? = this.getClassNode(name, true)
   // runTransformers means nothing in our case since we always run transformers before Mixin application
-  override fun getClassNode(name: String, runTransformers: Boolean): ClassNode? {
-    val res = ModLoader.classLoader.getClassNode(name) 
-    ModLoader.logger.info("{}: {} node at {}", name, runTransformers, res)
-    return res
-  }
+  override fun getClassNode(name: String, runTransformers: Boolean): ClassNode? = ModLoader.classLoader.getClassNode(name) 
   override fun getTransformers(): Collection<ITransformer> = listOf()
   override fun getDelegatedTransformers(): Collection<ITransformer> = listOf()
   override fun addTransformerExclusion(name: String) = Unit
@@ -87,15 +84,16 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
 
   override fun wire(phase: Phase, consumer: IConsumer<Phase>) {
     super.wire(phase, consumer)
-    ModLoader.logger.info("{}", phase)
     phaseConsumer = consumer
   }
 }
 
 object MixinTransform: Transform {
-  override fun transform(clazz: ClassNode) {
+  override fun transform(clazz: ClassNode, name: String) {
     // apply mixin transformations
-    Mixin.transformer.transformClass(MixinEnvironment.getCurrentEnvironment(), clazz.name, clazz)
+    if (Mixin.transformer.transformClass(MixinEnvironment.getCurrentEnvironment(), name, clazz)) {
+      ModLoader.logger.debug("transformed {} with mixin", clazz.name)
+    }
   }
 }
 

@@ -43,9 +43,11 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
   val path by lazy {
     Paths.get(jar.name).toAbsolutePath()
   } 
-  val url by lazy {
-      URI("jar:" + this.path.toUri().toString() + "!/").toURL()
+  val url: String by lazy {
+      URI("jar:" + this.path.toUri().toString() + "!/").toString()
   }
+
+  fun getContentUrl(name: String): URL = URI.create(this.url + name).toURL()
 }
 
 class ModDiscoverer(val modDirPath: String) {

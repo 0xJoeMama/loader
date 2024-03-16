@@ -42,7 +42,7 @@ class BootstrapTransform(): Transform {
   //     Bootstrap.wrapStreams();
   //     bootstrapDuration.set(Duration.between((Temporal)$$0, (Temporal)Instant.now()).toMillis());
   // }
-  override fun transform(clazz: ClassNode) {
+  override fun transform(clazz: ClassNode, name: String) {
     clazz.methods.find { it -> it.name == "bootStrap" && it.desc == "()V" }?.let { mn ->
       this.logger.info("modifying method ${mn.name}${mn.desc}")
       mn.instructions.find { insn -> 

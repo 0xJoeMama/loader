@@ -6,6 +6,10 @@ import org.slf4j.LoggerFactory
 import org.tomlj.Toml
 
 import java.util.jar.JarFile
+import java.net.URL
+import java.net.URI
+import java.nio.file.Paths
+import java.nio.file.Path
 
 import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transformer
@@ -13,13 +17,22 @@ import io.github.joemama.loader.transformer.Transform
 import io.github.joemama.loader.mixin.Mixin
 import io.github.joemama.loader.mixin.MixinTransform
 
+data class GameJar(val jarLoc: Path) {
+  private val absolutePath by lazy { this.jarLoc.toAbsolutePath() }
+  val jarUri: String by lazy {
+    URI.create("jar:${this.absolutePath.toUri().toURL().toString()}!/").toString()
+  }
+
+  fun getContentUrl(name: String): URL = URI.create(this.jarUri + name).toURL()
+}
+
 object ModLoader {
   val logger = LoggerFactory.getLogger(ModLoader::class.java)
   lateinit var modDir: String
   lateinit var gameJarPath: String
   lateinit var discoverer: ModDiscoverer
 
-  lateinit var gameJar: JarFile
+  lateinit var gameJar: GameJar
   lateinit var classLoader: Transformer 
 
   internal fun parseArgs(args: Array<String>): Array<String> {
@@ -60,7 +73,7 @@ object ModLoader {
   internal fun initLoader() {
     this.logger.info("starting mod loader")
     this.discoverer = ModDiscoverer(this.modDir)
-    this.gameJar = JarFile(this.gameJarPath)
+    this.gameJar = GameJar(Paths.get(this.gameJarPath))
     this.classLoader = Transformer()
 
     Mixin.initMixins()
