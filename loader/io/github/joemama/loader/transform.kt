@@ -51,7 +51,7 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
       // TODO; optimize the parsing of every loaded class
       if (classNode != null) {
         for (t in ModLoader.getTransforms(name)) {
-          this.logger.info("Transforming class $name")
+          this.logger.info("transforming class $name")
           t.transform(classNode, name)
         }
 
@@ -80,18 +80,18 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   }
 
   override protected fun findResource(name: String): URL? {
-    var gameUrl = ModLoader.gameJar.getContentUrl(name)!!
-
-    var targetUrl = this.tryResourceUrl(gameUrl)
-
+    // first check if it's a game class
+    var targetUrl = this.tryResourceUrl(ModLoader.gameJar.getContentUrl(name))
     if (targetUrl != null) return targetUrl
     
+    // if not a game class, attempt to load it from mod jars
     for (mod in ModLoader.discoverer.mods) {
-      targetUrl = mod.getContentUrl(name)
+      targetUrl = this.tryResourceUrl(mod.getContentUrl(name))
 
       if (targetUrl != null) return targetUrl
     }
 
+    // if no mod jars had it then it doesn't exist in us
     return null
   }
 

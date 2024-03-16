@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory
 
 import org.tomlj.Toml
 
-import java.util.jar.JarFile
 import java.net.URL
 import java.net.URI
 import java.nio.file.Paths
@@ -18,6 +17,10 @@ import io.github.joemama.loader.transformer.Transformer
 import io.github.joemama.loader.transformer.Transform
 import io.github.joemama.loader.mixin.Mixin
 import io.github.joemama.loader.mixin.MixinTransform
+
+interface LoaderPluginEntrypoint {
+  fun onLoaderInit()
+}
 
 data class GameJar(val jarLoc: Path) {
   private val absolutePath by lazy { this.jarLoc.toAbsolutePath() }
@@ -78,16 +81,17 @@ object ModLoader {
     this.gameJar = GameJar(Paths.get(this.gameJarPath))
     this.classLoader = Transformer()
 
+    this.callEntrypoint<LoaderPluginEntrypoint>("loader_start", LoaderPluginEntrypoint::onLoaderInit)
     Mixin.initMixins()
   }
 
-  fun start(owner: String, method: String, params: Array<String>) {
+  fun start(owner: String, method: String, desc: String, params: Array<String>) {
     this.logger.info("starting game")
     this.logger.debug("target game jars: ${this.gameJarPath}")
     this.logger.debug("game args: ${params.contentToString()}")
 
     val mainClass = this.classLoader.loadClass(owner)
-    val mainMethod = MethodHandles.lookup().findStatic(mainClass, "main", MethodType.fromMethodDescriptorString("([Ljava/lang/String;)V", null))
+    val mainMethod = MethodHandles.lookup().findStatic(mainClass, method, MethodType.fromMethodDescriptorString(desc, null))
 
     mainMethod.invokeExact(params)
   }
@@ -111,5 +115,5 @@ object ModLoader {
 fun main(args: Array<String>) {
   val newArgs = ModLoader.parseArgs(args)
   ModLoader.initLoader()
-  ModLoader.start(owner = "net.minecraft.client.main.Main", method = "main", params = newArgs)
+  ModLoader.start(owner = "net.minecraft.client.main.Main", method = "main", desc = "([Ljava/lang/String;)V", params = newArgs)
 }

@@ -6,52 +6,49 @@ import java.io.InputStream
 import java.net.URL
 
 import org.spongepowered.asm.launch.MixinBootstrap
-import org.spongepowered.asm.mixin.MixinEnvironment
-import org.spongepowered.asm.mixin.MixinEnvironment.Phase
-import org.spongepowered.asm.util.IConsumer
-import org.spongepowered.asm.service.IMixinServiceBootstrap
-import org.spongepowered.asm.service.IGlobalPropertyService
-import org.spongepowered.asm.service.MixinServiceAbstract
-import org.spongepowered.asm.service.IClassProvider
-import org.spongepowered.asm.service.IClassBytecodeProvider
-import org.spongepowered.asm.service.ITransformerProvider
-import org.spongepowered.asm.service.IClassTracker
-import org.spongepowered.asm.service.IMixinAuditTrail
 import org.spongepowered.asm.launch.platform.container.ContainerHandleURI
 import org.spongepowered.asm.launch.platform.container.IContainerHandle
-import org.spongepowered.asm.service.ITransformer
-import org.spongepowered.asm.service.IPropertyKey
-import org.spongepowered.asm.service.IMixinInternal
+import org.spongepowered.asm.service.*
+import org.spongepowered.asm.mixin.Mixins
+import org.spongepowered.asm.mixin.MixinEnvironment
+import org.spongepowered.asm.mixin.MixinEnvironment.Phase
 import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory
 import org.spongepowered.asm.mixin.transformer.IMixinTransformer
-import org.spongepowered.asm.mixin.Mixins
+import org.spongepowered.asm.logging.LoggerAdapterDefault
+import org.spongepowered.asm.logging.ILogger
+import org.spongepowered.asm.util.ReEntranceLock
+import org.spongepowered.asm.util.IConsumer
 
 import io.github.joemama.loader.ModLoader
 import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transform
 
-class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
+class Mixin: IMixinService, IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
   companion object {
     // beware of local global property
     internal lateinit var phaseConsumer: IConsumer<Phase>
     internal lateinit var transformer: IMixinTransformer
+    internal lateinit var environment: MixinEnvironment
     fun initMixins() {
       // initialize mixins
       MixinBootstrap.init()
+
       // pass in configs
       for (cfg in ModLoader.discoverer.mods.flatMap { it.meta.mixins }.map { it.path }) {
-        ModLoader.logger.info(cfg.toString())
         Mixins.addConfiguration(cfg)
       }
 
-      phaseConsumer.accept(Phase.INIT)
-      phaseConsumer.accept(Phase.DEFAULT)
-      ModLoader.logger.info("initialized mixins")
+      // move to the default phase
+      environment = MixinEnvironment.getEnvironment(Phase.DEFAULT)
     }
   }
 
+  private val lock = ReEntranceLock(1)
+
   // TODO: Change when we get a legit name
   override fun getName(): String = "ModLoader"
+  // TODO: change once we get legit side handling
+  override fun getSideName(): String = "CLIENT"
   override fun isValid(): Boolean = true
   override fun getClassProvider(): IClassProvider = this
   override fun getBytecodeProvider(): IClassBytecodeProvider = this
@@ -61,6 +58,16 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
   override fun getPlatformAgents(): Collection<String> = listOf("org.spongepowered.asm.launch.platform.MixinPlatformAgentDefault")
   override fun getPrimaryContainer(): IContainerHandle = ContainerHandleURI(ModLoader::class.java.protectionDomain.codeSource.location.toURI())
   override fun getResourceAsStream(name: String): InputStream = ModLoader.classLoader.getResourceAsStream(name)
+  override fun prepare() = Unit
+  override fun getInitialPhase() = MixinEnvironment.Phase.PREINIT
+  override fun init() = Unit
+  override fun beginPhase() = Unit
+  override fun checkEnv(o: Any) = Unit
+  override fun getReEntranceLock(): ReEntranceLock = this.lock
+  override fun getMixinContainers(): Collection<IContainerHandle> = listOf()
+  override fun getMinCompatibilityLevel(): MixinEnvironment.CompatibilityLevel = MixinEnvironment.CompatibilityLevel.JAVA_8
+  override fun getMaxCompatibilityLevel(): MixinEnvironment.CompatibilityLevel = MixinEnvironment.CompatibilityLevel.JAVA_17
+  override fun getLogger(name: String): ILogger = LoggerAdapterDefault(name)
 
   override fun getClassPath(): Array<out URL> = arrayOf()
   override fun findClass(name: String): Class<*>? = ModLoader.classLoader.findClass(name)
@@ -81,17 +88,12 @@ class Mixin: MixinServiceAbstract(), IClassProvider, IClassBytecodeProvider, ITr
       Mixin.transformer = internal.createTransformer()
     }
   }
-
-  override fun wire(phase: Phase, consumer: IConsumer<Phase>) {
-    super.wire(phase, consumer)
-    phaseConsumer = consumer
-  }
 }
 
 object MixinTransform: Transform {
   override fun transform(clazz: ClassNode, name: String) {
     // apply mixin transformations
-    if (Mixin.transformer.transformClass(MixinEnvironment.getCurrentEnvironment(), name, clazz)) {
+    if (Mixin.transformer.transformClass(Mixin.environment, name, clazz)) {
       ModLoader.logger.debug("transformed {} with mixin", clazz.name)
     }
   }
@@ -108,6 +110,8 @@ data class PropertyKey(val key: String): IPropertyKey
 class GlobalPropertyService: IGlobalPropertyService {
   val props: MutableMap<String, Any?> = mutableMapOf()
   override fun resolveKey(key: String): IPropertyKey = PropertyKey(key)
+  // safe since we trust mixins to keep types properly stored
+  @Suppress("UNCHECKED_CAST")
   override fun <T>getProperty(key: IPropertyKey): T? = this.props[(key as PropertyKey).key] as T
   override fun <T>getProperty(key: IPropertyKey, default: T?): T? = this.getProperty(key) ?: default
   override fun getPropertyString(key: IPropertyKey, default: String): String = this.getProperty(key, default).toString()
