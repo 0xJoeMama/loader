@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-const RECONSTRUCTOR_URL: &str =
+const RECONSTRUCT_URL: &str =
     "https://github.com/LXGaming/Reconstruct/releases/download/v1.3.25/reconstruct-cli-1.3.25.jar";
 const CFR_URL: &str = "https://repo1.maven.org/maven2/org/benf/cfr/0.152/cfr-0.152.jar";
 
@@ -27,7 +27,7 @@ pub async fn decomp(
     println!("[STEP] Decompiling the game...");
 
     let (recon, cfr) = tokio::join!(
-        download_file(RECONSTRUCTOR_URL, output.join("reconstructor.jar")),
+        download_file(RECONSTRUCT_URL, output.join("reconstruct.jar")),
         download_file(CFR_URL, output.join("cfr.jar"))
     );
     let recon = recon.unwrap();

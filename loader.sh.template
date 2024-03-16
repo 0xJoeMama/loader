@@ -4,8 +4,8 @@ set -e
 
 # Build
 echo "[INFO] building the loader for version ${version}"
-kotlinc -cp $CP:${lib_dir}/${version}-sources.jar -include-runtime -d build/loader.jar io
-jar uf ./build/loader.jar META-INF
+kotlinc -cp $CP:${lib_dir}/${version}-sources.jar -include-runtime -d build/loader.jar src/kotlin/
+jar uf build/loader.jar -C src/resources/ .
 echo "[INFO] loader was built"
 
 # Run
