@@ -1,36 +1,22 @@
 package io.github.joemama.loader.transformer
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
+import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.mixin.MixinTransform
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
-
-import java.net.URL
-import java.net.URI
-import java.nio.file.Paths
-import java.io.ByteArrayOutputStream
-import java.io.ByteArrayInputStream
-import java.io.IOException
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.net.JarURLConnection
-import java.util.Enumeration
-import java.util.Collections
-import java.nio.file.Files
-import java.nio.file.StandardOpenOption
-import java.io.OutputStream
-import java.util.jar.JarFile
-
-import io.github.joemama.loader.ModLoader
-import io.github.joemama.loader.mixin.Mixin
-import io.github.joemama.loader.mixin.MixinTransform
+import java.net.URL
+import java.util.*
 
 interface Transform {
    fun transform(clazz: ClassNode, name: String)
 }
 
-class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
-  val logger = LoggerFactory.getLogger(Transformer::class.java)
+class Transformer: ClassLoader(getSystemClassLoader()) {
+  private val logger: Logger = LoggerFactory.getLogger(Transformer::class.java)
 
   fun getClassNode(name: String): ClassNode? {
     val normalName = name.replace(".", "/") + ".class"
@@ -44,9 +30,9 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   }
 
   // we are given a class that parent loaders couldn't load. It's our turn to load it using the gameJar
-  override public fun findClass(name: String): Class<*>? {
+  public override fun findClass(name: String): Class<*>? {
     synchronized (this.getClassLoadingLock(name)) {
-      var classNode = this.getClassNode(name)
+      val classNode = this.getClassNode(name)
 
       // TODO; optimize the parsing of every loaded class
       if (classNode != null) {
@@ -72,14 +58,14 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
   private fun tryResourceUrl(url: URL): URL? {
     try {
       val jarCon = url.openConnection() as JarURLConnection
-      jarCon.getJarEntry()
+      jarCon.jarEntry
       return url
     } catch (e: Exception) {
       return null
     }
   }
 
-  override protected fun findResource(name: String): URL? {
+  override fun findResource(name: String): URL? {
     // first check if it's a game class
     var targetUrl = this.tryResourceUrl(ModLoader.gameJar.getContentUrl(name))
     if (targetUrl != null) return targetUrl
@@ -95,7 +81,7 @@ class Transformer(): ClassLoader(ClassLoader.getSystemClassLoader()) {
     return null
   }
 
-  override protected fun findResources(name: String): Enumeration<URL> {
+  override fun findResources(name: String): Enumeration<URL> {
     val res = this.findResource(name)
     return if (res == null) {
       Collections.emptyEnumeration()

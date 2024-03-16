@@ -17,16 +17,13 @@ import org.spongepowered.asm.mixin.transformer.IMixinTransformer
 import org.spongepowered.asm.logging.LoggerAdapterDefault
 import org.spongepowered.asm.logging.ILogger
 import org.spongepowered.asm.util.ReEntranceLock
-import org.spongepowered.asm.util.IConsumer
 
 import io.github.joemama.loader.ModLoader
-import io.github.joemama.loader.meta.ModDiscoverer
 import io.github.joemama.loader.transformer.Transform
 
 class Mixin: IMixinService, IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
   companion object {
     // beware of local global property
-    internal lateinit var phaseConsumer: IConsumer<Phase>
     internal lateinit var transformer: IMixinTransformer
     internal lateinit var environment: MixinEnvironment
     fun initMixins() {
@@ -57,9 +54,9 @@ class Mixin: IMixinService, IClassProvider, IClassBytecodeProvider, ITransformer
   override fun getAuditTrail(): IMixinAuditTrail? = null
   override fun getPlatformAgents(): Collection<String> = listOf("org.spongepowered.asm.launch.platform.MixinPlatformAgentDefault")
   override fun getPrimaryContainer(): IContainerHandle = ContainerHandleURI(ModLoader::class.java.protectionDomain.codeSource.location.toURI())
-  override fun getResourceAsStream(name: String): InputStream = ModLoader.classLoader.getResourceAsStream(name)
+  override fun getResourceAsStream(name: String): InputStream? = ModLoader.classLoader.getResourceAsStream(name)
   override fun prepare() = Unit
-  override fun getInitialPhase() = MixinEnvironment.Phase.PREINIT
+  override fun getInitialPhase(): Phase = Phase.PREINIT
   override fun init() = Unit
   override fun beginPhase() = Unit
   override fun checkEnv(o: Any) = Unit
@@ -85,7 +82,7 @@ class Mixin: IMixinService, IClassProvider, IClassBytecodeProvider, ITransformer
 
   override fun offer(internal: IMixinInternal) {
     if (internal is IMixinTransformerFactory) {
-      Mixin.transformer = internal.createTransformer()
+      transformer = internal.createTransformer()
     }
   }
 }
@@ -108,7 +105,7 @@ class MixinBootstrap: IMixinServiceBootstrap {
 data class PropertyKey(val key: String): IPropertyKey
 
 class GlobalPropertyService: IGlobalPropertyService {
-  val props: MutableMap<String, Any?> = mutableMapOf()
+  private val props: MutableMap<String, Any?> = mutableMapOf()
   override fun resolveKey(key: String): IPropertyKey = PropertyKey(key)
   // safe since we trust mixins to keep types properly stored
   @Suppress("UNCHECKED_CAST")

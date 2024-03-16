@@ -1,15 +1,12 @@
 package io.github.joemama.loader.meta
 
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 import org.tomlj.TomlTable
 import org.tomlj.Toml
-import org.tomlj.TomlArray
 
 import java.io.File
 
-import java.io.InputStream
 import java.io.FileFilter
 import java.util.jar.JarFile
 import java.nio.file.Paths
@@ -33,7 +30,7 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
       }
 
       try {
-        val meta = ModMeta.deserialize(metaToml) ?: throw IllegalJarException("Invalid mod jar ${file.name}")
+        val meta = ModMeta.deserialize(metaToml)
         Mod(modJar, meta)
       } catch (e: MetaParseException) {
         logger.error("File ${file.name} had a malformatted mods.toml file")
@@ -51,30 +48,30 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
     }
   }
 
-  val path by lazy {
+  private val path by lazy {
     Paths.get(jar.name).toAbsolutePath()
   } 
-  val url: String by lazy {
+  private val url: String by lazy {
       URI("jar:" + this.path.toUri().toString() + "!/").toString()
   }
 
   fun getContentUrl(name: String): URL = URI.create(this.url + name).toURL()
 }
 
-class ModDiscoverer(val modDirPath: String) {
-  val modDir = Paths.get(this.modDirPath).toFile()
+class ModDiscoverer(private val modDirPath: String) {
+  private val modDir = Paths.get(this.modDirPath).toFile()
   val mods: List<Mod>
   init {
-    logger.info("mod discovery running in folder ${modDirPath}")
+    logger.info("mod discovery running in folder $modDirPath")
     modDir.mkdirs()
-    this.mods = modDir.listFiles( FileFilter { !it.isDirectory() }).map { Mod.parse(it) }.filterNotNull()
+    this.mods = modDir.listFiles(FileFilter { !it.isDirectory() })?.mapNotNull { Mod.parse(it) } ?: throw IllegalStateException("For some reason we got a null result")
     logger.info("discovered ${mods.size} mod files")
   }
 }
 
 data class Entrypoint(val id: String, val clazz: String) {
    companion object {
-    fun deserialize(t: TomlTable): Entrypoint? {
+    fun deserialize(t: TomlTable): Entrypoint {
       val id = t.getString("id") ?: throw MetaParseException("Must provide an 'id' field for entrypoints")
       val clazz = t.getString("class") ?: throw MetaParseException("Must provide a 'class' field for entrypoints")
       return Entrypoint(id, clazz)
@@ -84,7 +81,7 @@ data class Entrypoint(val id: String, val clazz: String) {
 
 data class Transform(val name: String, val target: String, val clazz: String) {
   companion object {
-    fun deserialize(t: TomlTable): Transform? {
+    fun deserialize(t: TomlTable): Transform {
       val name = t.getString("name") ?: throw MetaParseException("Must provide a 'name' field for transforms")
       val target = t.getString("target") ?: throw MetaParseException("Must provide a 'target' field for transforms")
       val clazz = t.getString("class") ?: throw MetaParseException("Must provide a 'class' field for transforms")
@@ -105,7 +102,7 @@ data class Mixin(val path: String) {
 
 data class ModMeta(val name: String, val version: String, val description: String, val entrypoints: List<Entrypoint>, val modid: String, val transforms: List<Transform>, val mixins: List<Mixin>) {
   companion object {
-    fun deserialize(t: TomlTable): ModMeta? {
+    fun deserialize(t: TomlTable): ModMeta {
       val name: String = t.getString("name") ?: throw MetaParseException("Must provide a 'name' field for a mod")
       val version: String  = t.getString("version") ?: throw MetaParseException("Must provide a 'version' field for a mod")
       val description: String = t.getString("description") ?: throw MetaParseException("Must provide a 'description' field for a mod")
@@ -118,14 +115,14 @@ data class ModMeta(val name: String, val version: String, val description: Strin
 
       if (entrypointsT != null) {
         for (i in 0..<entrypointsT.size()) {
-          entrypoints.add(Entrypoint.deserialize(entrypointsT.getTable(i)) ?: return null)
+          entrypoints.add(Entrypoint.deserialize(entrypointsT.getTable(i)))
         }
       }
 
       val transformsT = t.getArray("transforms")
       if (transformsT != null) {
         for (i in 0..<transformsT.size()) {
-          transforms.add(Transform.deserialize(transformsT.getTable(i)) ?: return null)
+          transforms.add(Transform.deserialize(transformsT.getTable(i)))
         }
       }
 
