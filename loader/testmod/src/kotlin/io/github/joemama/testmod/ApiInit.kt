@@ -3,12 +3,11 @@ package io.github.joemama.testmod
 import io.github.joemama.loader.ModLoader
 
 interface CommonEntrypoint {
-  fun onInit()
+    fun onInit()
 }
 
+@Suppress("unused")
 fun apiInit() {
-  ModLoader.callEntrypoint<CommonEntrypoint>("common") {
-    it.onInit()
-  }
+    ModLoader.callEntrypoint("common", CommonEntrypoint::onInit)
 }
 

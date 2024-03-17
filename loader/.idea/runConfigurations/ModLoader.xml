@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ModLoader" type="Application" factoryName="Application">
+    <classpathModifications>
+      <entry exclude="true" path="$PROJECT_DIR$/libs/1.20.4.jar" />
+      <entry exclude="true" path="$PROJECT_DIR$/libs/1.20.4-sources.jar" />
+      <entry exclude="true" path="$PROJECT_DIR$/libs/reconstructor.jar" />
+      <entry exclude="true" path="$PROJECT_DIR$/libs/cfr.jar" />
+    </classpathModifications>
+    <option name="MAIN_CLASS_NAME" value="io.github.joemama.loader.MainKt" />
+    <module name="loader" />
+    <option name="PROGRAM_PARAMETERS" value="--source $PROJECT_DIR$/libs/1.20.4-sources.jar --mods $PROJECT_DIR$/build/mods --accessToken 69420 --version JoeLoader --gameDir run --assetsDir $PROJECT_DIR$/libs/assets --assetIndex 12" />
+    <method v="2">
+      <option name="BuildArtifacts" enabled="true">
+        <artifact name="testmod" />
+      </option>
+    </method>
+  </configuration>
+</component>

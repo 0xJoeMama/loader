@@ -1,17 +1,11 @@
 package io.github.joemama.testmod
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-import org.objectweb.asm.Opcodes
-import org.objectweb.asm.tree.ClassNode
-import org.objectweb.asm.tree.InsnList
-import org.objectweb.asm.tree.MethodInsnNode
-import org.objectweb.asm.tree.FieldInsnNode
-import org.objectweb.asm.tree.LdcInsnNode
-import org.objectweb.asm.tree.AbstractInsnNode
-
 import io.github.joemama.loader.transformer.Transform
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.tree.AbstractInsnNode
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.MethodInsnNode
+import org.slf4j.LoggerFactory
 
 class BootstrapTransform(): Transform {
   private val logger = LoggerFactory.getLogger(BootstrapTransform::class.java)
