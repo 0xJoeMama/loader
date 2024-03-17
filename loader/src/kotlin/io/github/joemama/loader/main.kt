@@ -10,9 +10,10 @@ import java.nio.file.Path
 import java.lang.invoke.MethodType
 import java.lang.invoke.MethodHandles
 
-import io.github.joemama.loader.transformer.Transformer
-import io.github.joemama.loader.transformer.Transform
+import io.github.joemama.loader.transformer.TransformingClassLoader
 import io.github.joemama.loader.mixin.Mixin
+import io.github.joemama.loader.mixin.MixinTransformation
+import io.github.joemama.loader.transformer.Transformer
 import org.slf4j.Logger
 
 interface LoaderPluginEntrypoint {
@@ -33,9 +34,13 @@ object ModLoader {
     private lateinit var modDir: String
     private lateinit var gameJarPath: String
     lateinit var discoverer: ModDiscoverer
-
+        private set
     lateinit var gameJar: GameJar
-    lateinit var classLoader: Transformer
+        private set
+    lateinit var classLoader: TransformingClassLoader
+        private set
+    lateinit var transformer: Transformer
+        private set
 
     internal fun parseArgs(args: Array<String>): Array<String> {
         var gameJarPath: String? = null
@@ -79,10 +84,16 @@ object ModLoader {
         this.logger.info("starting mod loader")
         this.discoverer = ModDiscoverer(this.modDir)
         this.gameJar = GameJar(Paths.get(this.gameJarPath))
-        this.classLoader = Transformer()
+
+        this.classLoader = TransformingClassLoader()
+
+        this.transformer = Transformer()
+
+        // TODO: Move to a loader plugin once we have those properly implemented
+        Mixin.initMixins()
+        this.transformer.registerInternal(MixinTransformation)
 
         this.callEntrypoint("loader_start", LoaderPluginEntrypoint::onLoaderInit)
-        Mixin.initMixins()
     }
 
     fun start(owner: String, method: String, desc: String, params: Array<String>) {
@@ -91,17 +102,14 @@ object ModLoader {
         this.logger.debug("game args: ${params.contentToString()}")
 
         val mainClass = this.classLoader.loadClass(owner)
-        val mainMethod =
-            MethodHandles.lookup().findStatic(mainClass, method, MethodType.fromMethodDescriptorString(desc, null))
+        val mainMethod = MethodHandles.lookup().findStatic(
+            mainClass,
+            method,
+            MethodType.fromMethodDescriptorString(desc, null)
+        )
 
         mainMethod.invokeExact(params)
     }
-
-    // TODO: Use a map for this
-    fun getTransforms(clazz: String): List<Transform> = this.discoverer.mods
-        .flatMap { it.meta.transforms }
-        .filter { it.target == clazz }
-        .map { Class.forName(it.clazz, true, this.classLoader).getDeclaredConstructor().newInstance() as Transform }
 
     inline fun <reified T> callEntrypoint(id: String, crossinline method: (T) -> Unit) {
         this.discoverer.mods

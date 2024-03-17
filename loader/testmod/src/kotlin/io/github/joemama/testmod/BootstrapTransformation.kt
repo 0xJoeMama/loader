@@ -1,15 +1,13 @@
 package io.github.joemama.testmod
 
-import io.github.joemama.loader.transformer.Transform
+import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.transformer.Transformation
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.MethodInsnNode
-import org.slf4j.LoggerFactory
 
-class BootstrapTransform : Transform {
-    private val logger = LoggerFactory.getLogger(BootstrapTransform::class.java)
-
+class BootstrapTransformation : Transformation {
     // ======================== Code from Bootstrap=======================
     // public static void bootStrap() {
     //     if (isBootstrapped) {
@@ -39,7 +37,6 @@ class BootstrapTransform : Transform {
     // }
     override fun transform(clazz: ClassNode, name: String) {
         clazz.methods.find { it.name == "bootStrap" && it.desc == "()V" }?.let { mn ->
-            this.logger.info("modifying method ${mn.name}${mn.desc}")
             mn.instructions.find { insn ->
                 if (insn.type != AbstractInsnNode.METHOD_INSN) {
                     false
@@ -55,7 +52,7 @@ class BootstrapTransform : Transform {
                     "()V"
                 )
                 mn.instructions.insertBefore(it, methodCall)
-                this.logger.debug("injected main call")
+                ModLoader.transformer.logger.debug("injected API main call")
             }
         }
     }

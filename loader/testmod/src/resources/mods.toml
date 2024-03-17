@@ -4,8 +4,8 @@ description = "My mod"
 modid = "mymod"
 
 [[transforms]]
-name = "Boostrap transform"
-class = "io.github.joemama.testmod.BootstrapTransform"
+name = "bootstrap transformation for common entrypoint"
+class = "io.github.joemama.testmod.BootstrapTransformation"
 target = "net.minecraft.server.Bootstrap"
 
 [[entrypoints]]

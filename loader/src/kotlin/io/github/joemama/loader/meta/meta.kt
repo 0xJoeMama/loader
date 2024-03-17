@@ -15,7 +15,6 @@ import java.net.URI
 
 internal val logger = LoggerFactory.getLogger(ModDiscoverer::class.java)
 
-class IllegalJarException(msg: String) : Exception(msg)
 class MetaParseException(msg: String) : Exception(msg)
 
 data class Mod(val jar: JarFile, val meta: ModMeta) {
@@ -32,10 +31,6 @@ data class Mod(val jar: JarFile, val meta: ModMeta) {
                 Mod(modJar, meta)
             } catch (e: MetaParseException) {
                 logger.error("File ${file.name} had a malformatted mods.toml file")
-                e.printStackTrace()
-                null
-            } catch (e: IllegalJarException) {
-                logger.error("File ${file.name} had jar file")
                 e.printStackTrace()
                 null
             }

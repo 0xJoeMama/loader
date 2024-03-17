@@ -1,7 +1,8 @@
 package io.github.joemama.loader.transformer
 
+import com.google.common.collect.Multimap
+import com.google.common.collect.MultimapBuilder
 import io.github.joemama.loader.ModLoader
-import io.github.joemama.loader.mixin.MixinTransform
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
@@ -12,12 +13,67 @@ import java.net.JarURLConnection
 import java.net.URL
 import java.util.*
 
-interface Transform {
+interface Transformation {
     fun transform(clazz: ClassNode, name: String)
 }
 
-class Transformer : ClassLoader(getSystemClassLoader()) {
-    private val logger: Logger = LoggerFactory.getLogger(Transformer::class.java)
+data class SimpleTransformation(
+    val transformation: Transformation,
+    val transformationName: String
+) : Transformation by transformation
+
+class Transformer : Transformation {
+    val logger: Logger = LoggerFactory.getLogger(Transformer::class.java)
+    private val external: Multimap<String, Lazy<SimpleTransformation>> = MultimapBuilder.ListMultimapBuilder
+        .hashKeys()
+        .arrayListValues()
+        .build()
+    private val internal = mutableListOf<Transformation>()
+
+    init {
+        for ((name, target, clazz) in ModLoader.discoverer.mods.flatMap { it.meta.transforms }) {
+            this.external.put(
+                target,
+                lazy {
+                    SimpleTransformation(
+                        Class.forName(clazz, true, ModLoader.classLoader)
+                            .getDeclaredConstructor()
+                            .newInstance() as Transformation,
+                        name
+                    )
+                }
+            )
+        }
+    }
+
+    fun registerInternal(t: Transformation) {
+        this.internal.add(t)
+    }
+
+    override fun transform(clazz: ClassNode, name: String) {
+        if (this.external.containsKey(name)) {
+            for (t in this.external.get(name)) {
+                this.logger.info("transforming $name with ${t.value.transformationName}")
+                t.value.transform(clazz, name)
+            }
+        }
+
+        for (t in this.internal) {
+            t.transform(clazz, name)
+        }
+    }
+}
+
+/**
+ * This class loader uses the classloading delegation model to:
+ * 1. Use the classpath for loader/minecraft dependencies
+ * 2. Load the contents of mods and the game itself through their jars at runtime
+ * 3. Apply transformations to game classes
+ *
+ * @author 0xJoeMama
+ */
+class TransformingClassLoader : ClassLoader(getSystemClassLoader()) {
+    private val logger: Logger = LoggerFactory.getLogger(TransformingClassLoader::class.java)
 
     fun getClassNode(name: String): ClassNode? {
         val normalName = name.replace(".", "/") + ".class"
@@ -35,18 +91,12 @@ class Transformer : ClassLoader(getSystemClassLoader()) {
         synchronized(this.getClassLoadingLock(name)) {
             val classNode = this.getClassNode(name)
 
-            // TODO; optimize the parsing of every loaded class
+            // TODO: optimize the parsing of every loaded class
             if (classNode != null) {
-                for (t in ModLoader.getTransforms(name)) {
-                    this.logger.info("transforming class $name")
-                    t.transform(classNode, name)
-                }
+                ModLoader.transformer.transform(classNode, name)
 
-                MixinTransform.transform(classNode, name)
-
-                // TODO: Move to different class writer.
                 // MixinClassWriter properly implements getCommonSuperClass without loading the class (used by COMPUTE_FRAMES)
-                // We need to do that same using ASM metadata.
+                // We may need to do that the same using ASM metadata. For now just using Mixin's implementation
                 val classWriter = MixinClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
                 classNode.accept(classWriter)
 

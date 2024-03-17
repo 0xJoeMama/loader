@@ -1,25 +1,64 @@
 package io.github.joemama.loader.mixin
 
+import io.github.joemama.loader.ModLoader
+import io.github.joemama.loader.transformer.Transformation
 import org.objectweb.asm.tree.ClassNode
-
-import java.io.InputStream
-import java.net.URL
-
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.spongepowered.asm.launch.MixinBootstrap
 import org.spongepowered.asm.launch.platform.container.ContainerHandleURI
 import org.spongepowered.asm.launch.platform.container.IContainerHandle
-import org.spongepowered.asm.service.*
-import org.spongepowered.asm.mixin.Mixins
+import org.spongepowered.asm.logging.ILogger
+import org.spongepowered.asm.logging.LoggerAdapterAbstract
 import org.spongepowered.asm.mixin.MixinEnvironment
 import org.spongepowered.asm.mixin.MixinEnvironment.Phase
-import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory
+import org.spongepowered.asm.mixin.Mixins
 import org.spongepowered.asm.mixin.transformer.IMixinTransformer
-import org.spongepowered.asm.logging.LoggerAdapterDefault
-import org.spongepowered.asm.logging.ILogger
+import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory
+import org.spongepowered.asm.service.*
 import org.spongepowered.asm.util.ReEntranceLock
+import java.io.InputStream
+import java.net.URL
 
-import io.github.joemama.loader.ModLoader
-import io.github.joemama.loader.transformer.Transform
+object MixinTransformation : Transformation {
+    override fun transform(clazz: ClassNode, name: String) {
+        if (Mixin.transformer.transformClass(Mixin.environment, name, clazz)) {
+            ModLoader.logger.debug("transformed {} with mixin", clazz.name)
+        }
+    }
+}
+
+class MixinLogger : LoggerAdapterAbstract("mixin") {
+    private val logger = LoggerFactory.getLogger(Mixin::class.java)
+    private fun matchLevel(level: org.spongepowered.asm.logging.Level): Level = when (level) {
+        org.spongepowered.asm.logging.Level.DEBUG -> Level.DEBUG
+        org.spongepowered.asm.logging.Level.WARN -> Level.WARN
+        org.spongepowered.asm.logging.Level.INFO -> Level.INFO
+        org.spongepowered.asm.logging.Level.TRACE -> Level.TRACE
+        org.spongepowered.asm.logging.Level.ERROR -> Level.ERROR
+        else -> throw IllegalArgumentException("Invalid logging level")
+    }
+
+    override fun getType(): String = "slf4j Logger"
+
+    override fun catching(p0: org.spongepowered.asm.logging.Level, p1: Throwable) {
+        this.throwing(p1)
+    }
+
+    override fun log(p0: org.spongepowered.asm.logging.Level, p1: String, vararg p2: Any) {
+        this.logger.atLevel(this.matchLevel(p0)).log(p1, *p2)
+    }
+
+    override fun log(p0: org.spongepowered.asm.logging.Level, p1: String, p2: Throwable) {
+        this.logger.atLevel(this.matchLevel(p0)).log(p1)
+        this.logger.atLevel(this.matchLevel(p0)).log(p2.toString())
+    }
+
+    override fun <T : Throwable> throwing(t: T): T {
+        this.warn("Throwing {}: {}", t::class.java.getName(), t.message, t)
+        return t
+    }
+}
 
 class Mixin : IMixinService, IClassProvider, IClassBytecodeProvider, ITransformerProvider, IClassTracker {
     companion object {
@@ -73,7 +112,7 @@ class Mixin : IMixinService, IClassProvider, IClassBytecodeProvider, ITransforme
     override fun getMaxCompatibilityLevel(): MixinEnvironment.CompatibilityLevel =
         MixinEnvironment.CompatibilityLevel.JAVA_17
 
-    override fun getLogger(name: String): ILogger = LoggerAdapterDefault(name)
+    override fun getLogger(name: String): ILogger = MixinLogger()
 
     @Suppress("DeprecatedCallableAddReplaceWith")
     @Deprecated("Deprecated in Java")
@@ -101,14 +140,6 @@ class Mixin : IMixinService, IClassProvider, IClassBytecodeProvider, ITransforme
     override fun offer(internal: IMixinInternal) {
         if (internal is IMixinTransformerFactory) {
             transformer = internal.createTransformer()
-        }
-    }
-}
-
-object MixinTransform : Transform {
-    override fun transform(clazz: ClassNode, name: String) {
-        if (Mixin.transformer.transformClass(Mixin.environment, name, clazz)) {
-            ModLoader.logger.debug("transformed {} with mixin", clazz.name)
         }
     }
 }
