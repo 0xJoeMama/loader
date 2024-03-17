@@ -1,11 +1,11 @@
 {
   "deps": [
     {
-      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm/9.6/asm-9.6.jar",
+      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm/9.5/asm-9.5.jar",
       "name": "asm.jar"
     },
     {
-      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar",
+      "url": "https://repository.ow2.org/nexus/service/local/repositories/releases/content/org/ow2/asm/asm-tree/9.5/asm-tree-9.5.jar",
       "name": "asm-tree.jar"
     },
     {
@@ -17,15 +17,15 @@
       "name": "mixin.jar"
     },
     {
-      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-analysis/9.6/asm-analysis-9.6.jar",
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-analysis/9.5/asm-analysis-9.5.jar",
       "name": "asm-analysis.jar"
     },
     {
-      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-util/9.6/asm-util-9.6.jar",
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-util/9.5/asm-util-9.5.jar",
       "name": "asm-util.jar"
     },
     {
-      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-commons/9.6/asm-commons-9.6.jar",
+      "url": "https://repository.ow2.org/nexus/content/repositories/releases/org/ow2/asm/asm-commons/9.5/asm-commons-9.5.jar",
       "name": "asm-commons.jar"
     }
   ]

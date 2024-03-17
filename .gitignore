@@ -6,5 +6,4 @@
 */build
 loader.sh
 *.class
-loader/.idea/workspace.xml
-loader/.idea/vcs.xml
+*/.idea

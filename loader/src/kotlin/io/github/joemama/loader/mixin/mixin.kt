@@ -107,7 +107,6 @@ class Mixin : IMixinService, IClassProvider, IClassBytecodeProvider, ITransforme
 
 object MixinTransform : Transform {
     override fun transform(clazz: ClassNode, name: String) {
-        // apply mixin transformations
         if (Mixin.transformer.transformClass(Mixin.environment, name, clazz)) {
             ModLoader.logger.debug("transformed {} with mixin", clazz.name)
         }

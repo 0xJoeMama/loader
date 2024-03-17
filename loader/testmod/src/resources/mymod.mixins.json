@@ -4,7 +4,8 @@
   "package": "io.github.joemama.testmod.mixins",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "ExampleMixin"
+    "MixinClientBrandRetriever",
+    "MixinMain"
   ],
   "injectors": {
     "defaultRequire": 1

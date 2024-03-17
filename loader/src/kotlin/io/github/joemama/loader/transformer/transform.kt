@@ -7,6 +7,7 @@ import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.spongepowered.asm.transformers.MixinClassWriter
 import java.net.JarURLConnection
 import java.net.URL
 import java.util.*
@@ -24,7 +25,7 @@ class Transformer : ClassLoader(getSystemClassLoader()) {
         return this.getResourceAsStream(normalName)?.use {
             val classReader = ClassReader(it)
             val classNode = ClassNode()
-            classReader.accept(classNode, 0)
+            classReader.accept(classNode, ClassReader.EXPAND_FRAMES)
             classNode
         }
     }
@@ -43,16 +44,19 @@ class Transformer : ClassLoader(getSystemClassLoader()) {
 
                 MixinTransform.transform(classNode, name)
 
-                val classWriter = ClassWriter(ClassWriter.COMPUTE_MAXS)
+                // TODO: Move to different class writer.
+                // MixinClassWriter properly implements getCommonSuperClass without loading the class (used by COMPUTE_FRAMES)
+                // We need to do that same using ASM metadata.
+                val classWriter = MixinClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
                 classNode.accept(classWriter)
-                // WARNING: Perhaps it might be a better idea to keep snapshots of the class in case someone messes up
-                val classBytes = classWriter.toByteArray()
 
-                return this.defineClass(name, classBytes, 0, classBytes!!.size)
+                return classWriter.toByteArray().let {
+                    this.defineClass(name, it, 0, it.size)
+                }
             }
-
-            return super.findClass(name)
         }
+
+        return super.findClass(name)
     }
 
     private fun tryResourceUrl(url: URL): URL? {
@@ -66,7 +70,6 @@ class Transformer : ClassLoader(getSystemClassLoader()) {
     }
 
     override fun findResource(name: String): URL? {
-        // first check if it's a game class
         var targetUrl = this.tryResourceUrl(ModLoader.gameJar.getContentUrl(name))
         if (targetUrl != null) return targetUrl
 
@@ -77,18 +80,24 @@ class Transformer : ClassLoader(getSystemClassLoader()) {
             if (targetUrl != null) return targetUrl
         }
 
+        this.logger.warn("Could not locate resource {}. Here be dragons!!!", name)
         // if no mod jars had it then it doesn't exist in us
         return null
     }
 
     override fun findResources(name: String): Enumeration<URL> {
-        val res = this.findResource(name)
-        return if (res == null) {
-            Collections.emptyEnumeration()
-        } else {
-            // we can guarantee there's only gonna be one file because of obfuscation
-            Collections.enumeration(listOf(res))
+        val urls = mutableListOf<URL>()
+        var targetUrl = this.tryResourceUrl(ModLoader.gameJar.getContentUrl(name))
+        if (targetUrl != null) urls.add(targetUrl)
+
+        for (mod in ModLoader.discoverer.mods) {
+            targetUrl = this.tryResourceUrl(mod.getContentUrl(name))
+
+            if (targetUrl != null) urls.add(targetUrl)
         }
+
+        return Collections.enumeration(urls)
+
     }
 
     fun isClassLoaded(name: String): Boolean = synchronized(this.getClassLoadingLock(name)) {
